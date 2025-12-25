@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASP - Pharaoh's Portal v.8.2 Final</title>
+    <title>ASP - Pharaoh's Portal v.8.3 Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -452,7 +452,7 @@
             document.getElementById('tokensSold').innerText = Math.max(0, INITIAL_SUPPLY - left).toLocaleString();
 
             const rawAsp = await aspC.balanceOf(user);
-            // --- CAMBIO AQUÍ: 4 DECIMALES EN WALLET DISPONIBLE ---
+            // 4 DECIMALES EN WALLET
             document.getElementById('userAspBal').innerText = parseFloat(ethers.utils.formatEther(rawAsp)).toFixed(4);
             
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
@@ -462,9 +462,9 @@
             const rewVal = parseFloat(ethers.utils.formatUnits(rew, 18));
             document.getElementById('myRewardsBig').innerText = rewVal.toFixed(4);
 
-            // LOGICA BOTON RESTAKE
+            // LOGICA BOTON RESTAKE (MIN 5 ASP)
             const restakeBtn = document.getElementById('restakeBtn');
-            if(rewVal > 0) {
+            if(rewVal >= 5) {
                 restakeBtn.disabled = false;
                 restakeBtn.classList.remove('btn-disabled');
                 restakeBtn.classList.add('btn-green');
@@ -473,14 +473,14 @@
                 restakeBtn.disabled = true;
                 restakeBtn.classList.add('btn-disabled');
                 restakeBtn.classList.remove('btn-green');
-                restakeBtn.innerText = "♻️ NO REWARDS TO RESTAKE";
+                restakeBtn.innerText = "♻️ MIN 5 ASP TO RESTAKE";
             }
 
             const stakeData = await stkC.stakes(user); 
             const stakedAmount = parseFloat(ethers.utils.formatEther(stakeData[0]));
             const userStakeTime = parseInt(stakeData[1].toString());
 
-            // --- CAMBIO AQUÍ: 4 DECIMALES EN STAKE ---
+            // 4 DECIMALES EN STAKE
             document.getElementById('myStakedAmt').innerText = stakedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
 
             // LOGICA CANDADO
