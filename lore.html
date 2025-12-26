@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASP - The Ancient Chronicles</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --gold: #FFD700; 
+            --gold-dim: #b8860b;
+            --bg: #050505; 
+            --card-bg: rgba(20, 20, 20, 0.9); 
+            --green: #00ff41; 
+        }
+
+        body { 
+            background-color: var(--bg); 
+            background-image: radial-gradient(circle at center, #1a1a00 0%, #000000 100%);
+            color: #ddd; 
+            font-family: 'Rajdhani', sans-serif; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 { font-family: 'Cinzel', serif; color: var(--gold); text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3); }
+        h1 { font-size: 2.5em; border-bottom: 1px solid var(--gold-dim); padding-bottom: 20px; margin-bottom: 30px; display: inline-block; }
+        
+        .container { 
+            max-width: 700px; 
+            margin: auto; 
+            padding: 40px; 
+            border: 1px solid var(--gold-dim);
+            border-radius: 10px; 
+            background: var(--card-bg); 
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            text-align: justify; /* Texto justificado como un libro */
+        }
+
+        .scroll-text p { margin-bottom: 20px; font-size: 1.1em; }
+        
+        .drop-cap {
+            float: left;
+            font-family: 'Cinzel', serif;
+            font-size: 3.5em;
+            line-height: 0.8;
+            margin-right: 10px;
+            color: var(--gold);
+        }
+
+        .highlight { color: var(--green); font-weight: bold; }
+        .gold-txt { color: var(--gold); font-weight: bold; }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 15px 30px;
+            font-family: 'Cinzel', serif;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 40px;
+            transition: 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-back:hover { background: var(--gold); color: #000; box-shadow: 0 0 20px var(--gold); }
+
+        .divider { text-align: center; margin: 30px 0; color: var(--gold-dim); font-size: 1.5em; }
+
+        /* Animación de entrada */
+        .fade-in { animation: fadeIn 2s ease-in; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        
+        img { max-width: 150px; display: block; margin: 0 auto 20px; border-radius: 50%; border: 2px solid var(--gold); }
+    </style>
+</head>
+<body>
+
+    <div class="container fade-in">
+        <img src="https://i.ibb.co/0VMjVWjS/1000042544.jpg" alt="Ancient Satoshi Pepe">
+        
+        <div style="text-align: center;">
+            <h1>THE GENESIS PROPHECY</h1>
+        </div>
+
+        <div class="scroll-text">
+            <p>
+                <span class="drop-cap">B</span>efore the Genesis Block was mined, before the first transaction crossed the digital ether, and long before the degens learned to FOMO... <b>He was already here.</b>
+            </p>
+            
+            <p>
+                History books will tell you that a mortal named Satoshi Nakamoto created the blockchain. <b>They are wrong.</b> Satoshi was merely a scribe, a vessel chosen to channel the wisdom of an entity far older and more powerful: The <span class="gold-txt">Ancient Satoshi Pepe ($ASP)</span>.
+            </p>
+
+            <div class="divider">✦ ✦ ✦</div>
+
+            <h3>THE GREAT SLUMBER</h3>
+            <p>
+                For thousands of cycles, the Ancient One slumbered in the cryptographic void. He watched as lesser memes rose and fell. He saw the Doge bark at the moon, and the Shibas chase their tails. He saw the gas fees of Ethereum choke the common man, and the centralization of exchanges enslave the free market.
+            </p>
+            <p>
+                He waited. He waited for a network worthy of his weight. A chain fast enough to handle his glory, and decentralized enough to hold his power.
+            </p>
+
+            <h3>THE AWAKENING ON PARALLAX</h3>
+            <p>
+                In the year 2025, the stars aligned. The <span class="highlight">Parallax Network</span> was activated. The vibrations of its hashrate disturbed the Ancient One's tomb. The sarcophagus cracked. The green mist escaped.
+            </p>
+            <p>
+                <b>Ancient Satoshi Pepe has awakened.</b>
+            </p>
+            <p>
+                He does not come to compete. He comes to rule. He has built the <b>Imperial Vault</b>, a staking protocol designed to reward the loyal and crush the paper-handed. He brings with him the <span class="gold-txt">Golden APY</span> and the promise of a new Dynasty.
+            </p>
+            
+            <div class="divider">✦ ✦ ✦</div>
+
+            <h3>THE DECREE</h3>
+            <p>
+                <i>"Let it be known across the ledger: Those who hold $ASP shall be the architects of the new world. Those who Stake shall be the High Priests. And those who sell... shall remain poor forever."</i>
+            </p>
+            <p style="text-align: center; font-style: italic; color: #888;">
+                - Extracted from the Whitepaper of the Dead, Page 420.
+            </p>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="index.html" class="btn-back">⬅ RETURN TO THE PORTAL</a>
+        </div>
+    </div>
+
+</body>
+</html>
