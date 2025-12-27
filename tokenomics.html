@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASP - Sacred Tokenomics</title>
+    <title>APEPE - Sacred Tokenomics</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -22,22 +22,21 @@
         .container { max-width: 600px; margin: auto; padding: 30px; border: 1px solid var(--gold-dim); border-radius: 20px; background: var(--card-bg); box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: fadeIn 1s ease-out; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 
-        /* --- EL QUESO IMPERIAL (CSS PURE PIE CHART) --- */
+        /* --- EL QUESO IMPERIAL --- */
         .pie-chart {
             width: 280px; height: 280px; border-radius: 50%; margin: 30px auto;
             background: conic-gradient(
-                var(--c-dex) 0% 47.6%,   /* DEX 47.6% */
-                var(--c-rew) 47.6% 67.6%, /* Rewards 20% */
-                var(--c-pre) 67.6% 82.6%, /* Presale 15% */
-                var(--c-mkt) 82.6% 92.6%, /* Marketing 10% */
-                var(--c-team) 92.6% 97.6%,/* Team 5% */
-                var(--c-dev) 97.6% 100%   /* Dev 2.4% */
+                var(--c-dex) 0% 47.6%,    /* DEX 47.6% */
+                var(--c-rew) 47.6% 72.8%, /* Rewards (5.3M) */
+                var(--c-pre) 72.8% 87.8%, /* Presale 15% */
+                var(--c-mkt) 87.8% 95%,   /* Marketing */
+                var(--c-team) 95% 98%,    /* Team */
+                var(--c-dev) 98% 100%     /* Dev */
             );
             border: 4px solid var(--gold-dim);
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
             position: relative;
         }
-        /* Agujero del Donut (Opcional, para estilo moderno) */
         .pie-chart::after {
             content: "21M"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 120px; height: 120px; background: #111; border-radius: 50%;
@@ -45,7 +44,6 @@
             font-size: 1.8em; font-weight: bold; color: #fff; border: 2px solid #333;
         }
 
-        /* --- LA LEYENDA --- */
         .legend { list-style: none; padding: 0; text-align: left; margin-top: 30px; }
         .legend li { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .legend li:last-child { border-bottom: none; }
@@ -61,9 +59,9 @@
 <body>
 
     <div class="container">
-        <img src="https://i.ibb.co/0VMjVWjS/1000042544.jpg" alt="ASP Logo" style="width: 80px; border-radius: 50%; border: 2px solid var(--gold); margin-bottom: 10px;">
+        <img src="https://i.ibb.co/zW5mcCs9/unnamed.jpg" alt="APEPE Logo" style="width: 80px; border-radius: 50%; border: 2px solid var(--gold); margin-bottom: 10px;">
         <h2>SACRED TOKENOMICS</h2>
-        <p style="color: #aaa; font-size: 0.9em;">TOTAL SUPPLY: <span style="color: #fff; font-weight: bold;">21,000,000 $ASP</span></p>
+        <p style="color: #aaa; font-size: 0.9em;">TOTAL SUPPLY: <span style="color: #fff; font-weight: bold;">21,000,000 $APEPE</span></p>
 
         <div class="pie-chart"></div>
 
@@ -73,8 +71,8 @@
                 <span class="val">10,000,000</span>
             </li>
             <li>
-                <span><span class="dot" style="background: var(--c-rew);"></span><span class="lbl">Weekly Rewards (Top 100)</span></span>
-                <span class="val">4,200,000</span>
+                <span><span class="dot" style="background: var(--c-rew);"></span><span class="lbl">Vault Rewards (2 Years)</span></span>
+                <span class="val">5,300,000</span>
             </li>
             <li>
                 <span><span class="dot" style="background: var(--c-pre);"></span><span class="lbl" style="color:var(--c-pre);">⚠️ Presale Allocation</span></span>
@@ -82,15 +80,15 @@
             </li>
             <li>
                 <span><span class="dot" style="background: var(--c-mkt);"></span><span class="lbl">Marketing & CEX</span></span>
-                <span class="val">2,100,000</span>
+                <span class="val">1,500,000</span>
             </li>
             <li>
                 <span><span class="dot" style="background: var(--c-team);"></span><span class="lbl">Team</span></span>
-                <span class="val">1,050,000</span>
+                <span class="val">600,000</span>
             </li>
             <li>
                 <span><span class="dot" style="background: var(--c-dev);"></span><span class="lbl">Dev ($LAX Fund)</span></span>
-                <span class="val">500,000</span>
+                <span class="val">450,000</span>
             </li>
         </ul>
 
