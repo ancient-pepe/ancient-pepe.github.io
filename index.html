@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v14 (Live Feed)</title>
+    <title>APEPE - Pharaoh's Portal v16 (Final)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -34,7 +34,6 @@
         @keyframes fadeIn { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
 
         .header-box { width: 100%; margin-bottom: 25px; display: flex; justify-content: center; align-items: center; background: transparent; }
-        /* Imagen rectangular */
         .header-img { max-width: 100%; height: auto; display: block; border-radius: 12px; filter: drop-shadow(0 0 10px rgba(255,215,0,0.3)); }
         
         button { 
@@ -114,7 +113,6 @@
         .feed-item { padding: 10px 0; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; animation: fadeIn 0.5s ease-out; }
         .feed-wallet { color: var(--gold); font-weight: bold; font-family: 'Rajdhani', sans-serif; }
         .feed-amounts { text-align: right; line-height: 1.2; }
-        /* Scrollbar aesthetic */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111; border-radius: 3px; }
         ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
@@ -167,7 +165,7 @@
     <div class="card" style="padding-bottom: 10px;">
         <h3>📜 RECENT ACTIVITY</h3>
         <div id="liveFeedList" class="feed-container small-txt">
-            <p style="text-align:center; opacity: 0.6;">Scanning blockchain... ⏳</p>
+            <p style="text-align:center; opacity: 0.6;">Connect Wallet to view activity... 🔒</p>
         </div>
     </div>
 
@@ -283,18 +281,17 @@
 <script>
     // --- CONTRACT ADDRESSES ---
     const PRESALE_ADDR = "0x241D981d656808b30f2cC83242a307B6EF0A5e4f"; // V3
-    const STAKE_ADDR   = "0x60BAB44FbD5fC025497AA1cf7366F4A73e71f9dD"; // V4 - VaultPro 2.1
+    const STAKE_ADDR   = "0x60BAB44FbD5fC025497AA1cf7366F4A73e71f9dD"; // V4
     const APEPE_ADDR   = "0xd1060183552A88455f037a58B2aC639C7966a214"; // Token
-    const PARALLAX_RPC = "https://rpc.parallaxchain.org"; // RPC público para el feed
-
+    
     // --- CONFIGURACIÓN ---
     const INITIAL_SUPPLY = 3000000; 
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
     let laxPriceUsd = 0.07; 
 
-    // --- ABI ACTUALIZADO (Incluye Evento TokensPurchased) ---
+    // --- ABI ---
     const ABI = [
-        "event TokensPurchased(address indexed buyer, uint256 nativeAmount, uint256 tokenAmount)", // Necesario para el feed
+        "event TokensPurchased(address indexed buyer, uint256 nativeAmount, uint256 tokenAmount)",
         "function buyTokens() public payable",
         "function withdrawNativeFunds() external",
         "function stake(uint256 _amount) external", 
@@ -319,32 +316,35 @@
             if (accounts.length > 0) connect();
         }
         handleBuyInput("");
-        loadRecentBuys(); // Cargar el feed al inicio
     };
 
-    // --- FUNCIÓN PARA CARGAR EL FEED DE COMPRAS ---
+    // --- CARGAR FEED (RANGO AMPLIADO A 50.000 BLOQUES + SIN CORS) ---
     async function loadRecentBuys() {
         try {
-            // Usamos un proveedor de lectura público para no depender de la wallet del usuario
-            const readProvider = new ethers.providers.JsonRpcProvider(PARALLAX_RPC);
-            const preC = new ethers.Contract(PRESALE_ADDR, ABI, readProvider);
+            if (!provider) return; 
+            
+            const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
             const feedDiv = document.getElementById('liveFeedList');
+            
+            feedDiv.innerHTML = "<p style='text-align:center; opacity:0.6;'>Scanning blockchain (Deep Scan)... ⏳</p>";
 
-            const latestBlock = await readProvider.getBlockNumber();
-            // Consultamos los últimos 5000 bloques buscando eventos de compra
+            const latestBlock = await provider.getBlockNumber();
+            
+            // --- FIX: Rango ampliado para ver compras antiguas ---
+            const BLOCK_RANGE = 50000; 
+            const fromBlock = Math.max(0, latestBlock - BLOCK_RANGE);
+
             const filter = preC.filters.TokensPurchased();
-            const logs = await preC.queryFilter(filter, Math.max(0, latestBlock - 5000), latestBlock);
+            const logs = await preC.queryFilter(filter, fromBlock, latestBlock);
 
             if (logs.length === 0) {
                 feedDiv.innerHTML = "<p style='text-align:center; opacity:0.6;'>No recent activity detected.</p>";
                 return;
             }
 
-            feedDiv.innerHTML = ""; // Limpiar mensaje de carga
+            feedDiv.innerHTML = ""; 
 
-            // Invertimos para ver los más nuevos primero y tomamos los últimos 10
             const recentLogs = logs.reverse().slice(0, 10);
-
             recentLogs.forEach(log => {
                 const buyer = log.args.buyer;
                 const shortBuyer = buyer.substring(0, 6) + "..." + buyer.substring(38);
@@ -368,11 +368,11 @@
 
         } catch (e) {
             console.error("Feed Error:", e);
-            document.getElementById('liveFeedList').innerHTML = "<p style='text-align:center; color:var(--red);'>Error loading feed.</p>";
+            document.getElementById('liveFeedList').innerHTML = "<p style='text-align:center; color:var(--red); opacity:0.7;'>Feed unavailable (Check Connection)</p>";
         }
     }
 
-    // --- CONEXIÓN SIMPLE (ESTILO V1) ---
+    // --- CONEXIÓN ---
     async function connect() {
         if (!window.ethereum) return;
         try {
@@ -392,16 +392,18 @@
             checkStakingAllowance(accs[0]);
             loadData();
             
+            // --- FIX: Cargar feed solo al conectar para evitar error CORS ---
+            loadRecentBuys();
+            
             provider.on("block", (blockNumber) => { 
                 loadData(); 
-                // Recargar el feed cada pocos bloques para mantenerlo fresco
                 if(blockNumber % 3 === 0) loadRecentBuys();
             });
 
         } catch (e) { console.error(e); }
     }
 
-    // --- FUNCIÓN DE RED SEGURA ---
+    // --- RED SEGURA ---
     async function ensureNetwork() {
         try {
             const net = await provider.getNetwork();
@@ -412,13 +414,15 @@
                         chainId: '0x83E',
                         chainName: 'Parallax Mainnet',
                         nativeCurrency: { name: 'LAX', symbol: 'LAX', decimals: 18 },
-                        rpcUrls: [PARALLAX_RPC],
+                        rpcUrls: ['https://rpc.parallaxchain.org'],
                         blockExplorerUrls: ['https://explorer.parallaxchain.org']
                     }],
                 });
             }
         } catch(e) { console.error(e); }
     }
+
+    document.getElementById('forceNetworkBtn').onclick = async () => { await ensureNetwork(); };
 
     function handleBuyInput(valStr) {
         const val = parseFloat(valStr);
@@ -442,7 +446,6 @@
         const amt = document.getElementById('laxInput').value;
         try {
             await ensureNetwork();
-            
             const wei = ethers.utils.parseUnits(amt.toString(), 18);
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
             const tx = await preC.buyTokens({ value: wei, gasLimit: 200000 });
@@ -454,7 +457,7 @@
             window.location.reload();
         } catch(e) { 
             console.error(e);
-            alert("Transaction failed. Check console or Network."); 
+            alert("Transaction failed."); 
             document.getElementById('pre-loading').classList.add('hidden');
             document.getElementById('buy-section').classList.remove('hidden');
         }
@@ -592,10 +595,12 @@
             document.getElementById('tokensSold').innerText = sold.toLocaleString(undefined, {maximumFractionDigits:0});
 
             let percent = (sold / effectiveTotal) * 100;
-            if (percent > 100) percent = 100;
-            if (percent < 0) percent = 0;
-            document.getElementById('progressBar').style.width = percent + "%";
-            document.getElementById('progressText').innerText = percent.toFixed(2) + "% SOLD";
+            // --- FIX VISUAL: Mostrar < 0.01% si hay ventas mínimas ---
+            let displayPercent = percent.toFixed(2);
+            if (sold > 0 && percent < 0.01) displayPercent = "< 0.01";
+            
+            document.getElementById('progressBar').style.width = Math.max(percent, 1) + "%"; 
+            document.getElementById('progressText').innerText = displayPercent + "% SOLD";
 
             const rawAsp = await aspC.balanceOf(user);
             document.getElementById('userAspBal').innerText = parseFloat(ethers.utils.formatEther(rawAsp)).toFixed(4);
@@ -669,10 +674,6 @@
 
         } catch(e) { console.error(e); }
     }
-
-    document.getElementById('forceNetworkBtn').onclick = async () => {
-        await ensureNetwork();
-    };
 
     function showStep(type, step) {
         document.getElementById(`${type}-step1`).classList.add('hidden');
