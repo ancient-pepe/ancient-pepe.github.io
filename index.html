@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v9.3 Pro</title>
+    <title>APEPE - Pharaoh's Portal v9.5 Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -100,10 +100,14 @@
 
         #security-warning { display:none; background: rgba(0, 255, 255, 0.05); border: 1px solid cyan; padding: 10px; margin-top: 10px; border-radius: 8px; font-size: 0.8em; color: cyan; text-shadow: 0 0 5px cyan; }
     
-        /* --- NUEVO: BARRA DE PROGRESO --- */
-        .progress-container { width: 100%; background-color: #222; border-radius: 10px; margin: 15px 0; border: 1px solid #444; height: 24px; position: relative; overflow: hidden; }
+        /* --- BARRA DE PROGRESO --- */
+        .progress-container { width: 100%; background-color: #222; border-radius: 10px; margin: 15px 0; border: 1px solid #444; height: 28px; position: relative; overflow: hidden; }
         .progress-bar { height: 100%; background: linear-gradient(90deg, #b8860b, #FFD700, #00ff41); width: 0%; transition: width 0.8s ease-in-out; border-radius: 8px 0 0 8px; }
-        .progress-text { position: absolute; width: 100%; text-align: center; top: 2px; font-size: 0.85em; color: #fff; font-weight: bold; text-shadow: 0 0 3px #000; z-index: 2; }
+        .progress-text { position: absolute; width: 100%; text-align: center; top: 4px; font-size: 0.9em; color: #fff; font-weight: bold; text-shadow: 1px 1px 3px #000; z-index: 2; letter-spacing: 1px;}
+        
+        /* SUPPLY INFO */
+        .supply-info { margin-top: -10px; margin-bottom: 20px; font-size: 0.85em; color: #666; }
+        .supply-gold { color: var(--gold); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -129,16 +133,21 @@
 
     <div class="progress-container">
         <div id="progressBar" class="progress-bar"></div>
-        <div id="progressText" class="progress-text">0% SOLD</div>
+        <div id="progressText" class="progress-text">0.00% SOLD</div>
+    </div>
+    
+    <div class="supply-info">
+        TOTAL SUPPLY: <span class="supply-gold">21,000,000 APEPE</span><br>
+        (3M en Preventa | 50% Liquidez Bloqueada)
     </div>
 
     <div class="stats-grid">
         <div class="stat-box">
-            <span class="stat-label">Tokens Left</span>
-            <span id="tokensLeft" class="stat-val">Loading...</span>
+            <span class="stat-label">$LAX RAISED</span>
+            <span id="laxRaised" class="stat-val">Loading...</span>
         </div>
         <div class="stat-box">
-            <span class="stat-label">Tokens Sold</span>
+            <span class="stat-label">APEPE SOLD</span>
             <span id="tokensSold" class="stat-val">Loading...</span>
         </div>
     </div>
@@ -253,9 +262,7 @@
     const APEPE_ADDR   = "0xd1060183552A88455f037a58B2aC639C7966a214"; // Token
     
     // --- CONFIGURACIÓN DE LA PREVENTA ---
-    // IMPORTANTE: Si añades más tokens al contrato, cambia este número aquí.
-    const INITIAL_SUPPLY = 3000000; 
-    
+    const INITIAL_SUPPLY = 3000000; // BASE PARA LA BARRA (3M)
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
     
     let laxPriceUsd = 0.07; 
@@ -441,21 +448,27 @@
             
             const aspC = new ethers.Contract(APEPE_ADDR, ABI, provider);
             
-            // --- CÁLCULO DINÁMICO DE LA PREVENTA ---
+            // --- CÁLCULO INTELIGENTE (LAX RAISED Y APEPE SOLD) ---
             const contractAspBal = await aspC.balanceOf(PRESALE_ADDR);
             const left = parseFloat(ethers.utils.formatEther(contractAspBal));
             
-            // Calculamos "Vendidos" como: INITIAL_SUPPLY - Lo que queda en el contrato.
-            // Si el Admin añade tokens (Left > INITIAL), Sold será 0 (para no mostrar negativos).
-            let sold = INITIAL_SUPPLY - left;
+            // Ajuste dinámico si el admin recarga el contrato
+            const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
+            
+            // Tokens Vendidos
+            let sold = effectiveTotal - left;
             if (sold < 0) sold = 0; 
+            
+            // LAX Recaudado (Sold / 20)
+            let laxRaised = sold / 20;
 
-            document.getElementById('tokensLeft').innerText = left.toLocaleString(undefined, {maximumFractionDigits:0});
-            document.getElementById('tokensSold').innerText = sold.toLocaleString();
+            // ACTUALIZACIÓN DEL DOM
+            document.getElementById('laxRaised').innerText = laxRaised.toLocaleString(undefined, {maximumFractionDigits:2});
+            document.getElementById('tokensSold').innerText = sold.toLocaleString(undefined, {maximumFractionDigits:0});
 
-            // Calculamos Porcentaje para la Barra
-            let percent = (sold / INITIAL_SUPPLY) * 100;
-            if (percent > 100) percent = 100; // Tope visual 100%
+            // Porcentaje (Sobre 3M o el efectivo actual)
+            let percent = (sold / effectiveTotal) * 100;
+            if (percent > 100) percent = 100;
             if (percent < 0) percent = 0;
 
             document.getElementById('progressBar').style.width = percent + "%";
