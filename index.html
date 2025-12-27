@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v9.1 Pro</title>
+    <title>APEPE - Pharaoh's Portal v9.3 Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -33,9 +33,8 @@
 
         @keyframes fadeIn { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
 
-        /* CABECERA CORREGIDA (Rectangular) */
         .header-box { width: 100%; margin-bottom: 25px; display: flex; justify-content: center; align-items: center; background: transparent; }
-        .header-img { max-width: 100%; height: auto; display: block; transition: transform 0.5s; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); /* Eliminado border-radius y border */ }
+        .header-img { max-width: 100%; height: auto; display: block; transition: transform 0.5s; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); }
         .header-img:hover { transform: scale(1.02); }
         
         button { 
@@ -99,8 +98,12 @@
         .btn-small { font-size: 0.8em; padding: 10px 15px; width: auto; border: 1px solid var(--gold-dim); background: rgba(0,0,0,0.5); color: #ccc; }
         .btn-small:hover { border-color: var(--gold); color: var(--gold); background: rgba(255,215,0,0.1); }
 
-        /* --- SEGURIDAD ANTI-BALLENA --- */
         #security-warning { display:none; background: rgba(0, 255, 255, 0.05); border: 1px solid cyan; padding: 10px; margin-top: 10px; border-radius: 8px; font-size: 0.8em; color: cyan; text-shadow: 0 0 5px cyan; }
+    
+        /* --- NUEVO: BARRA DE PROGRESO --- */
+        .progress-container { width: 100%; background-color: #222; border-radius: 10px; margin: 15px 0; border: 1px solid #444; height: 24px; position: relative; overflow: hidden; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #b8860b, #FFD700, #00ff41); width: 0%; transition: width 0.8s ease-in-out; border-radius: 8px 0 0 8px; }
+        .progress-text { position: absolute; width: 100%; text-align: center; top: 2px; font-size: 0.85em; color: #fff; font-weight: bold; text-shadow: 0 0 3px #000; z-index: 2; }
     </style>
 </head>
 <body>
@@ -122,6 +125,11 @@
         <p class="small-txt">Authorized Access Only</p>
         <button id="adminWithdrawBtn" class="btn-admin">💰 RETIRAR FONDOS (LAX)</button>
         <button id="adminStartDexBtn" class="btn-admin">🚀 ENABLE DEX & VESTING</button>
+    </div>
+
+    <div class="progress-container">
+        <div id="progressBar" class="progress-bar"></div>
+        <div id="progressText" class="progress-text">0% SOLD</div>
     </div>
 
     <div class="stats-grid">
@@ -239,18 +247,20 @@
 </div>
 
 <script>
-    // --- UPDATED CONTRACT ADDRESSES (LAS DEFINITIVAS) ---
-    const PRESALE_ADDR = "0x241D981d656808b30f2cC83242a307B6EF0A5e4f"; // V3 Presale
-    const STAKE_ADDR   = "0xE18866b3a9359F6cf19e3cDF2dF610cBBA14eb29"; // V4 Vault
+    // --- CONTRACT ADDRESSES ---
+    const PRESALE_ADDR = "0x241D981d656808b30f2cC83242a307B6EF0A5e4f"; // V3
+    const STAKE_ADDR   = "0xE18866b3a9359F6cf19e3cDF2dF610cBBA14eb29"; // V4
     const APEPE_ADDR   = "0xd1060183552A88455f037a58B2aC639C7966a214"; // Token
     
-    const INITIAL_SUPPLY = 3150000; 
-    // PON TU WALLET AQUÍ PARA VER EL PANEL DE ADMIN
+    // --- CONFIGURACIÓN DE LA PREVENTA ---
+    // IMPORTANTE: Si añades más tokens al contrato, cambia este número aquí.
+    const INITIAL_SUPPLY = 3000000; 
+    
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
     
     let laxPriceUsd = 0.07; 
 
-    // --- ABI ACTUALIZADO (Funciones V3 y V4) ---
+    // --- ABI ---
     const ABI = [
         // Presale V3
         "function buyTokens() public payable",
@@ -261,7 +271,7 @@
         "function withdraw(uint256 _amount) external",
         "function getReward() public",
         "function enableDex() external",
-        "function isSafetyModeActive() external view returns (bool)", // Función de la imagen
+        "function isSafetyModeActive() external view returns (bool)", 
         "function dexReady() public view returns (bool)",
         "function earned(address account) public view returns (uint256)",
         "function balanceOf(address account) external view returns (uint256)", 
@@ -309,7 +319,7 @@
         document.getElementById('aspPreview').innerText = (val > 0) ? (val * 20).toLocaleString() : "0";
         document.getElementById('usdCost').innerText = (val > 0) ? (val * laxPriceUsd).toFixed(2) : "0.00";
 
-        if (!val || val < 0.01) { // Min 0.01 LAX
+        if (!val || val < 0.01) { 
             if(valStr !== "") document.getElementById('minError').style.display = 'block';
             buyBtn.disabled = true; buyBtn.classList.add('btn-disabled');
         } else {
@@ -320,13 +330,12 @@
 
     document.getElementById('laxInput').oninput = (e) => handleBuyInput(e.target.value);
 
-    // --- COMPRAR (PRESALE V3) ---
+    // --- COMPRAR ---
     document.getElementById('buyBtn').onclick = async () => {
         const amt = document.getElementById('laxInput').value;
         try {
             const wei = ethers.utils.parseUnits(amt.toString(), 18);
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
-            // V3 usa buyTokens() con msg.value
             const tx = await preC.buyTokens({ value: wei, gasLimit: 200000 });
             document.getElementById('buy-section').classList.add('hidden');
             document.getElementById('pre-loading').classList.remove('hidden');
@@ -341,7 +350,7 @@
         }
     };
 
-    // --- FUNCIONES ADMIN ---
+    // --- ADMIN ---
     document.getElementById('adminWithdrawBtn').onclick = async () => {
         try {
             if(!confirm("Withdraw ALL LAX?")) return;
@@ -362,7 +371,7 @@
         } catch(e) { alert("Error: " + e.message); }
     };
 
-    // --- STAKING LOGIC ---
+    // --- STAKING ---
     async function checkStakingAllowance(user) {
         try {
             const aspC = new ethers.Contract(APEPE_ADDR, ABI, provider);
@@ -396,15 +405,11 @@
     
     document.getElementById('unstakeBtn').onclick = async () => {
         try {
-            // Retirar solo principal
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
             const user = await signer.getAddress();
-            const bal = await stkC.balanceOf(user); // Balance staked
-            
+            const bal = await stkC.balanceOf(user);
             if(bal.eq(0)) { alert("No stake to withdraw."); return; }
-            
             if(!confirm("Withdraw your Principal? Rewards will remain if vested.")) return;
-            
             const tx = await stkC.withdraw(bal, { gasLimit: 500000 });
             await tx.wait();
             alert("PRINCIPAL WITHDRAWN! 🔓");
@@ -416,12 +421,9 @@
         try {
             document.getElementById('restake-ui').classList.add('hidden');
             document.getElementById('restake-loading').classList.remove('hidden');
-
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
-            // V4 usa compound()
             const tx = await stkC.compound({ gasLimit: 500000 });
             await tx.wait();
-            
             alert("Compound Successful!");
             window.location.reload();
         } catch(e) { 
@@ -438,26 +440,39 @@
             document.getElementById('userLaxBal').innerText = parseFloat(ethers.utils.formatEther(rawLax)).toFixed(4);
             
             const aspC = new ethers.Contract(APEPE_ADDR, ABI, provider);
-            // Lógica Presale
+            
+            // --- CÁLCULO DINÁMICO DE LA PREVENTA ---
             const contractAspBal = await aspC.balanceOf(PRESALE_ADDR);
             const left = parseFloat(ethers.utils.formatEther(contractAspBal));
+            
+            // Calculamos "Vendidos" como: INITIAL_SUPPLY - Lo que queda en el contrato.
+            // Si el Admin añade tokens (Left > INITIAL), Sold será 0 (para no mostrar negativos).
+            let sold = INITIAL_SUPPLY - left;
+            if (sold < 0) sold = 0; 
+
             document.getElementById('tokensLeft').innerText = left.toLocaleString(undefined, {maximumFractionDigits:0});
-            document.getElementById('tokensSold').innerText = Math.max(0, INITIAL_SUPPLY - left).toLocaleString();
+            document.getElementById('tokensSold').innerText = sold.toLocaleString();
+
+            // Calculamos Porcentaje para la Barra
+            let percent = (sold / INITIAL_SUPPLY) * 100;
+            if (percent > 100) percent = 100; // Tope visual 100%
+            if (percent < 0) percent = 0;
+
+            document.getElementById('progressBar').style.width = percent + "%";
+            document.getElementById('progressText').innerText = percent.toFixed(2) + "% SOLD";
 
             const rawAsp = await aspC.balanceOf(user);
             document.getElementById('userAspBal').innerText = parseFloat(ethers.utils.formatEther(rawAsp)).toFixed(4);
             
-            // Vault V4 Data
+            // Vault V4
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
             
-            // --- LÓGICA DE SEGURIDAD ---
             try {
                 const isSafety = await stkC.isSafetyModeActive();
                 if(isSafety) document.getElementById('security-warning').style.display = 'block';
                 else document.getElementById('security-warning').style.display = 'none';
             } catch(e) {}
 
-            // Rewards
             const rew = await stkC.earned(user);
             const rewVal = parseFloat(ethers.utils.formatUnits(rew, 18));
             document.getElementById('myRewardsBig').innerText = rewVal.toFixed(4);
@@ -475,7 +490,6 @@
                 restakeBtn.innerText = "♻️ REWARDS TOO LOW";
             }
 
-            // Staked Amount
             const stakedBal = await stkC.balanceOf(user);
             const stakedAmount = parseFloat(ethers.utils.formatEther(stakedBal));
             document.getElementById('myStakedAmt').innerText = stakedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
