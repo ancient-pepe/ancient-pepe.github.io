@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v16 (Final)</title>
+    <title>APEPE - Pharaoh's Portal v17 (Auto-Price)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -117,6 +117,10 @@
         ::-webkit-scrollbar-track { background: #111; border-radius: 3px; }
         ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
 
+        /* --- NUEVO: AVISO PRECIO --- */
+        #price-alert { display: none; background: rgba(255, 0, 0, 0.1); border: 1px dashed var(--red); padding: 10px; border-radius: 8px; margin: 15px 0; text-align: center; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 51, 51, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); } }
+
     </style>
 </head>
 <body>
@@ -139,6 +143,15 @@
         <p class="small-txt">Authorized Access Only</p>
         <button id="adminWithdrawBtn" class="btn-admin">💰 RETIRAR FONDOS (LAX)</button>
         <button id="adminStartDexBtn" class="btn-admin">🚀 ENABLE DEX & VESTING</button>
+        <hr style="border-color: #500; margin: 10px 0;">
+        <p class="small-txt" style="color:#f88;">⚙️ CHANGE PRICE (RATE)</p>
+        <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:center;">
+            <button onclick="setRate(18)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 18</button>
+            <button onclick="setRate(16)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 16</button>
+            <button onclick="setRate(14)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 14</button>
+            <button onclick="setRate(12)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 12</button>
+            <button onclick="setRate(10)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 10</button>
+        </div>
     </div>
 
     <div class="progress-container">
@@ -181,6 +194,22 @@
             <input type="number" id="laxInput" placeholder="Min: 1 $LAX">
             <p id="minError" class="error-txt">⚠️ MINIMUM 1 LAX TO BUY</p>
             
+            <div id="price-alert">
+                <p class="small-txt" style="margin:0; color: #aaa;">CURRENT PRICE PHASE:</p>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 5px;">
+                    <div style="text-decoration: line-through; color: #666; font-size: 0.9em;">
+                        1 LAX = 20 APEPE
+                    </div>
+                    <div style="color: #fff;">➝</div>
+                    <div class="highlight" style="font-size: 1.1em; color: var(--green);">
+                        1 LAX = <span id="currentRateDisplay">20</span> APEPE
+                    </div>
+                </div>
+                <div style="background: var(--red); color: white; font-size: 0.7em; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; font-weight: bold;">
+                    📈 PRICE INCREASED <span id="percentIncrease">0</span>%
+                </div>
+            </div>
+
             <div style="display:flex; justify-content:space-between; margin-top:10px;">
                 <span class="small-txt">Recieve:</span>
                 <span class="small-txt">Cost:</span>
@@ -288,6 +317,7 @@
     const INITIAL_SUPPLY = 3000000; 
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
     let laxPriceUsd = 0.07; 
+    let currentExchangeRate = 20; // Default
 
     // --- ABI ---
     const ABI = [
@@ -305,7 +335,9 @@
         "function earned(address account) public view returns (uint256)",
         "function balanceOf(address account) external view returns (uint256)", 
         "function approve(address s, uint256 a) public returns (bool)",
-        "function allowance(address o, address s) public view returns (uint256)"
+        "function allowance(address o, address s) public view returns (uint256)",
+        "function rate() public view returns (uint256)", // LECTURA DE PRECIO
+        "function setRate(uint256 _newRate) external"   // CAMBIO DE PRECIO
     ];
 
     let signer, provider;
@@ -318,22 +350,15 @@
         handleBuyInput("");
     };
 
-    // --- CARGAR FEED (RANGO AMPLIADO A 50.000 BLOQUES + SIN CORS) ---
     async function loadRecentBuys() {
         try {
             if (!provider) return; 
-            
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
             const feedDiv = document.getElementById('liveFeedList');
-            
             feedDiv.innerHTML = "<p style='text-align:center; opacity:0.6;'>Scanning blockchain (Deep Scan)... ⏳</p>";
-
             const latestBlock = await provider.getBlockNumber();
-            
-            // --- FIX: Rango ampliado para ver compras antiguas ---
             const BLOCK_RANGE = 50000; 
             const fromBlock = Math.max(0, latestBlock - BLOCK_RANGE);
-
             const filter = preC.filters.TokensPurchased();
             const logs = await preC.queryFilter(filter, fromBlock, latestBlock);
 
@@ -341,69 +366,40 @@
                 feedDiv.innerHTML = "<p style='text-align:center; opacity:0.6;'>No recent activity detected.</p>";
                 return;
             }
-
             feedDiv.innerHTML = ""; 
-
             const recentLogs = logs.reverse().slice(0, 10);
             recentLogs.forEach(log => {
                 const buyer = log.args.buyer;
                 const shortBuyer = buyer.substring(0, 6) + "..." + buyer.substring(38);
                 const laxAmt = parseFloat(ethers.utils.formatEther(log.args.nativeAmount)).toFixed(2);
                 const apepeAmt = parseFloat(ethers.utils.formatEther(log.args.tokenAmount)).toLocaleString(undefined, {maximumFractionDigits: 0});
-
                 const itemHtml = `
                     <div class="feed-item">
-                        <div>
-                            <span style="font-size:1.2em;">🐸</span> Wallet <span class="feed-wallet">${shortBuyer}</span>
-                            <span class="small-txt"><br>bought</span>
-                        </div>
-                        <div class="feed-amounts">
-                            <span class="highlight">${apepeAmt} APEPE</span><br>
-                            <span class="small-txt">for ${laxAmt} LAX</span>
-                        </div>
-                    </div>
-                `;
+                        <div><span style="font-size:1.2em;">🐸</span> Wallet <span class="feed-wallet">${shortBuyer}</span><span class="small-txt"><br>bought</span></div>
+                        <div class="feed-amounts"><span class="highlight">${apepeAmt} APEPE</span><br><span class="small-txt">for ${laxAmt} LAX</span></div>
+                    </div>`;
                 feedDiv.innerHTML += itemHtml;
             });
-
-        } catch (e) {
-            console.error("Feed Error:", e);
-            document.getElementById('liveFeedList').innerHTML = "<p style='text-align:center; color:var(--red); opacity:0.7;'>Feed unavailable (Check Connection)</p>";
-        }
+        } catch (e) { console.error("Feed Error:", e); document.getElementById('liveFeedList').innerHTML = "<p style='text-align:center; color:var(--red); opacity:0.7;'>Feed unavailable</p>"; }
     }
 
-    // --- CONEXIÓN ---
     async function connect() {
         if (!window.ethereum) return;
         try {
             const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            
             provider = new ethers.providers.Web3Provider(window.ethereum);
             signer = provider.getSigner();
-            
             document.getElementById('connectBtn').innerText = "CONNECTED ✅";
             document.getElementById('connectBtn').classList.add('btn-green');
             document.getElementById('walletAddress').innerText = "Wallet: " + accs[0].substring(0,6) + "..." + accs[0].substring(38);
-            
-            if(accs[0].toLowerCase() === OWNER_ADDRESS.toLowerCase()) {
-                document.getElementById('adminPanel').style.display = 'block';
-            }
-
+            if(accs[0].toLowerCase() === OWNER_ADDRESS.toLowerCase()) document.getElementById('adminPanel').style.display = 'block';
             checkStakingAllowance(accs[0]);
             loadData();
-            
-            // --- FIX: Cargar feed solo al conectar para evitar error CORS ---
             loadRecentBuys();
-            
-            provider.on("block", (blockNumber) => { 
-                loadData(); 
-                if(blockNumber % 3 === 0) loadRecentBuys();
-            });
-
+            provider.on("block", (blockNumber) => { loadData(); if(blockNumber % 3 === 0) loadRecentBuys(); });
         } catch (e) { console.error(e); }
     }
 
-    // --- RED SEGURA ---
     async function ensureNetwork() {
         try {
             const net = await provider.getNetwork();
@@ -411,8 +407,7 @@
                 await window.ethereum.request({
                     method: 'wallet_addEthereumChain',
                     params: [{
-                        chainId: '0x83E',
-                        chainName: 'Parallax Mainnet',
+                        chainId: '0x83E', chainName: 'Parallax Mainnet',
                         nativeCurrency: { name: 'LAX', symbol: 'LAX', decimals: 18 },
                         rpcUrls: ['https://rpc.parallaxchain.org'],
                         blockExplorerUrls: ['https://explorer.parallaxchain.org']
@@ -421,15 +416,14 @@
             }
         } catch(e) { console.error(e); }
     }
-
     document.getElementById('forceNetworkBtn').onclick = async () => { await ensureNetwork(); };
 
     function handleBuyInput(valStr) {
         const val = parseFloat(valStr);
         const buyBtn = document.getElementById('buyBtn');
-        document.getElementById('aspPreview').innerText = (val > 0) ? (val * 20).toLocaleString() : "0";
+        // USA EL PRECIO AUTOMÁTICO (currentExchangeRate)
+        document.getElementById('aspPreview').innerText = (val > 0) ? (val * currentExchangeRate).toLocaleString() : "0";
         document.getElementById('usdCost').innerText = (val > 0) ? (val * laxPriceUsd).toFixed(2) : "0.00";
-
         if (!val || val < 0.01) { 
             if(valStr !== "") document.getElementById('minError').style.display = 'block';
             buyBtn.disabled = true; buyBtn.classList.add('btn-disabled');
@@ -438,10 +432,8 @@
             buyBtn.disabled = false; buyBtn.classList.remove('btn-disabled');
         }
     }
-
     document.getElementById('laxInput').oninput = (e) => handleBuyInput(e.target.value);
 
-    // --- COMPRAR ---
     document.getElementById('buyBtn').onclick = async () => {
         const amt = document.getElementById('laxInput').value;
         try {
@@ -449,137 +441,67 @@
             const wei = ethers.utils.parseUnits(amt.toString(), 18);
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
             const tx = await preC.buyTokens({ value: wei, gasLimit: 200000 });
-            
             document.getElementById('buy-section').classList.add('hidden');
             document.getElementById('pre-loading').classList.remove('hidden');
             await tx.wait();
             alert("SUCCESS! 🏺 $APEPE Purchased.");
             window.location.reload();
-        } catch(e) { 
-            console.error(e);
-            alert("Transaction failed."); 
-            document.getElementById('pre-loading').classList.add('hidden');
-            document.getElementById('buy-section').classList.remove('hidden');
-        }
+        } catch(e) { console.error(e); alert("Transaction failed."); document.getElementById('pre-loading').classList.add('hidden'); document.getElementById('buy-section').classList.remove('hidden'); }
     };
 
-    // --- ADMIN ---
+    // --- ADMIN ACTIONS ---
     document.getElementById('adminWithdrawBtn').onclick = async () => {
-        try {
-            if(!confirm("Withdraw ALL LAX?")) return;
-            await ensureNetwork();
-            const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
-            const tx = await preC.withdrawNativeFunds();
-            await tx.wait();
-            alert("FUNDS WITHDRAWN! 💰");
-        } catch(e) { alert("Error: " + e.message); }
+        try { if(!confirm("Withdraw ALL LAX?")) return; await ensureNetwork(); const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer); const tx = await preC.withdrawNativeFunds(); await tx.wait(); alert("FUNDS WITHDRAWN! 💰"); } catch(e) { alert("Error: " + e.message); }
     };
     document.getElementById('adminStartDexBtn').onclick = async () => {
+        try { if(!confirm("ENABLE DEX & START VESTING?")) return; await ensureNetwork(); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.enableDex(); await tx.wait(); alert("DEX ENABLED! 🚀"); loadData(); } catch(e) { alert("Error: " + e.message); }
+    };
+    // NUEVO: CAMBIAR PRECIO
+    window.setRate = async (newRate) => {
         try {
-            if(!confirm("ENABLE DEX & START VESTING?")) return;
+            if(!confirm(`⚠️ CHANGE PRICE?\n\nNew Rate: 1 LAX = ${newRate} APEPE\n(Lower rate = Higher price)`)) return;
             await ensureNetwork();
-            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
-            const tx = await stkC.enableDex();
+            const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
+            const tx = await preC.setRate(newRate);
             await tx.wait();
-            alert("DEX ENABLED! 🚀");
+            alert(`PRICE UPDATED TO ${newRate}! 📈`);
             loadData();
         } catch(e) { alert("Error: " + e.message); }
     };
 
     // --- STAKING ---
-    async function checkStakingAllowance(user) {
-        try {
-            const aspC = new ethers.Contract(APEPE_ADDR, ABI, provider);
-            const allow = await aspC.allowance(user, STAKE_ADDR);
-            if(allow.gt(ethers.utils.parseEther("1000"))) showStep('stk', 2);
-        } catch(e) { console.error(e); }
-    }
-    document.getElementById('stk-approveBtn').onclick = async () => {
-        try {
-            await ensureNetwork();
-            const aspC = new ethers.Contract(APEPE_ADDR, ABI, signer);
-            const tx = await aspC.approve(STAKE_ADDR, ethers.constants.MaxUint256);
-            showStep('stk', 'loading');
-            await tx.wait();
-            showStep('stk', 2);
-        } catch(e) { showStep('stk', 1); }
-    };
-    
-    document.getElementById('stakeBtn').onclick = async () => {
-        const amt = document.getElementById('stakeInput').value;
-        if (!amt || amt <= 0) return;
-        try {
-            await ensureNetwork();
-            const wei = ethers.utils.parseUnits(amt.toString(), 18);
-            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
-            const tx = await stkC.stake(wei, { gasLimit: 500000 });
-            showStep('stk', 'loading'); 
-            await tx.wait();
-            alert("STAKING SUCCESSFUL! 🔒");
-            window.location.reload();
-        } catch(e) { alert("Staking failed."); showStep('stk', 2); }
-    };
-    
-    document.getElementById('unstakeBtn').onclick = async () => {
-        try {
-            await ensureNetwork();
-            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
-            const user = await signer.getAddress();
-            const bal = await stkC.balanceOf(user);
-            
-            let warningMsg = "Withdraw your Principal?";
-            try {
-                const isPenalty = await stkC.isPenaltyActive();
-                if(isPenalty) warningMsg = "⚠️ WARNING: You are withdrawing BEFORE vesting ends.\n\nYou will receive your PRINCIPAL, but ALL REWARDS will be FORFEITED (Lost).\n\nAre you sure?";
-            } catch(e) {}
-
-            if(bal.eq(0)) { alert("No stake to withdraw."); return; }
-            if(!confirm(warningMsg)) return;
-            
-            const tx = await stkC.withdraw(bal, { gasLimit: 500000 });
-            await tx.wait();
-            alert("PRINCIPAL WITHDRAWN! 🔓");
-            window.location.reload();
-        } catch(e) { alert("Error: " + e.message); }
-    };
-
-    document.getElementById('restakeBtn').onclick = async () => {
-        try {
-            await ensureNetwork();
-            document.getElementById('restake-ui').classList.add('hidden');
-            document.getElementById('restake-loading').classList.remove('hidden');
-            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
-            const tx = await stkC.compound({ gasLimit: 500000 });
-            await tx.wait();
-            alert("Compound Successful! ♻️");
-            window.location.reload();
-        } catch(e) { 
-            alert("Compound failed (Min 20 APEPE required)."); 
-            document.getElementById('restake-loading').classList.add('hidden');
-            document.getElementById('restake-ui').classList.remove('hidden');
-        }
-    };
-
-    document.getElementById('claimBtn').onclick = async () => {
-        try {
-            await ensureNetwork();
-            document.getElementById('restake-ui').classList.add('hidden');
-            document.getElementById('restake-loading').classList.remove('hidden');
-            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
-            const tx = await stkC.getReward({ gasLimit: 500000 });
-            await tx.wait();
-            alert("Rewards Claimed! 💰");
-            window.location.reload();
-        } catch(e) { 
-            alert("Claim failed or Locked."); 
-            document.getElementById('restake-loading').classList.add('hidden');
-            document.getElementById('restake-ui').classList.remove('hidden');
-        }
-    };
+    async function checkStakingAllowance(user) { try { const aspC = new ethers.Contract(APEPE_ADDR, ABI, provider); const allow = await aspC.allowance(user, STAKE_ADDR); if(allow.gt(ethers.utils.parseEther("1000"))) showStep('stk', 2); } catch(e) { console.error(e); } }
+    document.getElementById('stk-approveBtn').onclick = async () => { try { await ensureNetwork(); const aspC = new ethers.Contract(APEPE_ADDR, ABI, signer); const tx = await aspC.approve(STAKE_ADDR, ethers.constants.MaxUint256); showStep('stk', 'loading'); await tx.wait(); showStep('stk', 2); } catch(e) { showStep('stk', 1); } };
+    document.getElementById('stakeBtn').onclick = async () => { const amt = document.getElementById('stakeInput').value; if (!amt || amt <= 0) return; try { await ensureNetwork(); const wei = ethers.utils.parseUnits(amt.toString(), 18); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.stake(wei, { gasLimit: 500000 }); showStep('stk', 'loading'); await tx.wait(); alert("STAKING SUCCESSFUL! 🔒"); window.location.reload(); } catch(e) { alert("Staking failed."); showStep('stk', 2); } };
+    document.getElementById('unstakeBtn').onclick = async () => { try { await ensureNetwork(); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const user = await signer.getAddress(); const bal = await stkC.balanceOf(user); let warningMsg = "Withdraw your Principal?"; try { const isPenalty = await stkC.isPenaltyActive(); if(isPenalty) warningMsg = "⚠️ WARNING: You are withdrawing BEFORE vesting ends.\n\nYou will receive your PRINCIPAL, but ALL REWARDS will be FORFEITED (Lost).\n\nAre you sure?"; } catch(e) {} if(bal.eq(0)) { alert("No stake to withdraw."); return; } if(!confirm(warningMsg)) return; const tx = await stkC.withdraw(bal, { gasLimit: 500000 }); await tx.wait(); alert("PRINCIPAL WITHDRAWN! 🔓"); window.location.reload(); } catch(e) { alert("Error: " + e.message); } };
+    document.getElementById('restakeBtn').onclick = async () => { try { await ensureNetwork(); document.getElementById('restake-ui').classList.add('hidden'); document.getElementById('restake-loading').classList.remove('hidden'); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.compound({ gasLimit: 500000 }); await tx.wait(); alert("Compound Successful! ♻️"); window.location.reload(); } catch(e) { alert("Compound failed (Min 20 APEPE required)."); document.getElementById('restake-loading').classList.add('hidden'); document.getElementById('restake-ui').classList.remove('hidden'); } };
+    document.getElementById('claimBtn').onclick = async () => { try { await ensureNetwork(); document.getElementById('restake-ui').classList.add('hidden'); document.getElementById('restake-loading').classList.remove('hidden'); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.getReward({ gasLimit: 500000 }); await tx.wait(); alert("Rewards Claimed! 💰"); window.location.reload(); } catch(e) { alert("Claim failed or Locked."); document.getElementById('restake-loading').classList.add('hidden'); document.getElementById('restake-ui').classList.remove('hidden'); } };
 
     async function loadData() {
         try {
             const user = await signer.getAddress();
+            const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
+            
+            // --- DETECTAR PRECIO (RATE) AUTOMÁTICAMENTE ---
+            try {
+                const rateBn = await preC.rate();
+                currentExchangeRate = rateBn.toNumber();
+                
+                // LÓGICA DEL CARTEL DE PRECIO
+                if (currentExchangeRate < 20) {
+                    document.getElementById('price-alert').style.display = 'block';
+                    document.getElementById('currentRateDisplay').innerText = currentExchangeRate;
+                    // Calcular porcentaje de subida: ((20 - rate) / rate) * 100
+                    // Ejemplo: rate 10 -> (10/10)*100 = 100% subida
+                    let increase = ((20 - currentExchangeRate) / currentExchangeRate) * 100;
+                    document.getElementById('percentIncrease').innerText = "+" + increase.toFixed(0);
+                } else {
+                    document.getElementById('price-alert').style.display = 'none';
+                }
+                // Actualizar calculadora con el nuevo rate
+                handleBuyInput(document.getElementById('laxInput').value);
+            } catch(e) { console.log("Error fetching rate", e); }
+
             const rawLax = await provider.getBalance(user);
             document.getElementById('userLaxBal').innerText = parseFloat(ethers.utils.formatEther(rawLax)).toFixed(4);
             
@@ -589,13 +511,12 @@
             const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
             let sold = effectiveTotal - left;
             if (sold < 0) sold = 0; 
-            let laxRaised = sold / 20;
+            let laxRaised = sold / 20; // Aproximado base
 
             document.getElementById('laxRaised').innerText = laxRaised.toLocaleString(undefined, {maximumFractionDigits:2});
             document.getElementById('tokensSold').innerText = sold.toLocaleString(undefined, {maximumFractionDigits:0});
 
             let percent = (sold / effectiveTotal) * 100;
-            // --- FIX VISUAL: Mostrar < 0.01% si hay ventas mínimas ---
             let displayPercent = percent.toFixed(2);
             if (sold > 0 && percent < 0.01) displayPercent = "< 0.01";
             
@@ -606,88 +527,28 @@
             document.getElementById('userAspBal').innerText = parseFloat(ethers.utils.formatEther(rawAsp)).toFixed(4);
             
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
-            try {
-                const isSafety = await stkC.isSafetyModeActive();
-                if(isSafety) document.getElementById('security-warning').style.display = 'block';
-                else document.getElementById('security-warning').style.display = 'none';
-            } catch(e) {}
+            try { const isSafety = await stkC.isSafetyModeActive(); if(isSafety) document.getElementById('security-warning').style.display = 'block'; else document.getElementById('security-warning').style.display = 'none'; } catch(e) {}
 
             const rew = await stkC.earned(user);
             const rewVal = parseFloat(ethers.utils.formatUnits(rew, 18));
             document.getElementById('myRewardsBig').innerText = rewVal.toFixed(4);
 
             const restakeBtn = document.getElementById('restakeBtn');
-            if(rewVal >= 20) {
-                restakeBtn.disabled = false;
-                restakeBtn.classList.remove('btn-disabled');
-                restakeBtn.classList.add('btn-green');
-                restakeBtn.innerText = "♻️ COMPOUND REWARDS (RESTAKE)";
-            } else {
-                restakeBtn.disabled = true;
-                restakeBtn.classList.add('btn-disabled');
-                restakeBtn.classList.remove('btn-green');
-                restakeBtn.innerText = "♻️ COMPOUND (MIN 20 APEPE)";
-            }
+            if(rewVal >= 20) { restakeBtn.disabled = false; restakeBtn.classList.remove('btn-disabled'); restakeBtn.classList.add('btn-green'); restakeBtn.innerText = "♻️ COMPOUND REWARDS (RESTAKE)"; } else { restakeBtn.disabled = true; restakeBtn.classList.add('btn-disabled'); restakeBtn.classList.remove('btn-green'); restakeBtn.innerText = "♻️ COMPOUND (MIN 20 APEPE)"; }
 
-            const claimBtn = document.getElementById('claimBtn');
-            const unstakeBtn = document.getElementById('unstakeBtn');
-            const unstakeMsg = document.getElementById('unstake-msg');
-            
-            try {
-                const isPenalty = await stkC.isPenaltyActive();
-                if(isPenalty) {
-                    claimBtn.disabled = true;
-                    claimBtn.classList.add('btn-disabled');
-                    claimBtn.classList.remove('btn-gold');
-                    claimBtn.innerText = "🔒 CLAIM LOCKED (VESTING)";
-                    unstakeBtn.innerText = "⚠️ UNSTAKE (YOU LOSE REWARDS)";
-                    unstakeMsg.innerText = "*Early exit forfeits ALL profits.";
-                } else {
-                    if(rewVal > 0) {
-                        claimBtn.disabled = false;
-                        claimBtn.classList.remove('btn-disabled');
-                        claimBtn.classList.add('btn-gold');
-                        claimBtn.innerText = "💰 CLAIM REWARDS TO WALLET";
-                    } else {
-                        claimBtn.innerText = "💰 CLAIM (NO REWARDS)";
-                    }
-                    unstakeBtn.innerText = "🔓 UNSTAKE PRINCIPAL";
-                    unstakeMsg.innerText = "*You can withdraw safely.";
-                }
-            } catch(e) { console.log("Dex not started yet"); }
+            const claimBtn = document.getElementById('claimBtn'); const unstakeBtn = document.getElementById('unstakeBtn'); const unstakeMsg = document.getElementById('unstake-msg');
+            try { const isPenalty = await stkC.isPenaltyActive(); if(isPenalty) { claimBtn.disabled = true; claimBtn.classList.add('btn-disabled'); claimBtn.classList.remove('btn-gold'); claimBtn.innerText = "🔒 CLAIM LOCKED (VESTING)"; unstakeBtn.innerText = "⚠️ UNSTAKE (YOU LOSE REWARDS)"; unstakeMsg.innerText = "*Early exit forfeits ALL profits."; } else { if(rewVal > 0) { claimBtn.disabled = false; claimBtn.classList.remove('btn-disabled'); claimBtn.classList.add('btn-gold'); claimBtn.innerText = "💰 CLAIM REWARDS TO WALLET"; } else { claimBtn.innerText = "💰 CLAIM (NO REWARDS)"; } unstakeBtn.innerText = "🔓 UNSTAKE PRINCIPAL"; unstakeMsg.innerText = "*You can withdraw safely."; } } catch(e) { console.log("Dex not started yet"); }
 
             const stakedBal = await stkC.balanceOf(user);
             const stakedAmount = parseFloat(ethers.utils.formatEther(stakedBal));
             document.getElementById('myStakedAmt').innerText = stakedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
 
             const statusEl = document.getElementById('dexStatus');
-            try {
-                const isLaunched = await stkC.dexReady();
-                if(!isLaunched) {
-                    statusEl.innerText = "WAITING FOR LAUNCH...";
-                    statusEl.style.color = "cyan";
-                } else {
-                    statusEl.innerText = "LIVE! REWARDS GENERATING ⚡";
-                    statusEl.style.color = "#00ff00"; 
-                }
-            } catch(e) {}
-
+            try { const isLaunched = await stkC.dexReady(); if(!isLaunched) { statusEl.innerText = "WAITING FOR LAUNCH..."; statusEl.style.color = "cyan"; } else { statusEl.innerText = "LIVE! REWARDS GENERATING ⚡"; statusEl.style.color = "#00ff00"; } } catch(e) {}
         } catch(e) { console.error(e); }
     }
 
-    function showStep(type, step) {
-        document.getElementById(`${type}-step1`).classList.add('hidden');
-        document.getElementById(`${type}-loading`).classList.add('hidden');
-        document.getElementById(`${type}-step2`).classList.add('hidden');
-        document.getElementById(`${type}-${step === 1 ? 'step1' : step === 'loading' ? 'loading' : 'step2'}`).classList.remove('hidden');
-    }
-
-    document.getElementById('addTokenBtn').onclick = async () => {
-        await window.ethereum.request({
-            method: 'wallet_watchAsset',
-            params: { type: 'ERC20', options: { address: APEPE_ADDR, symbol: 'APEPE', decimals: 18 } },
-        });
-    };
+    document.getElementById('addTokenBtn').onclick = async () => { await window.ethereum.request({ method: 'wallet_watchAsset', params: { type: 'ERC20', options: { address: APEPE_ADDR, symbol: 'APEPE', decimals: 18 } }, }); };
     document.getElementById('connectBtn').onclick = connect;
 </script>
 </body>
