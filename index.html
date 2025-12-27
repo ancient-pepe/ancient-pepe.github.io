@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v19 (Final APY)</title>
+    <title>APEPE - Pharaoh's Portal v20 (Final Logic)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
     <style>
         /* --- ESTILOS VISUALES --- */
         :root { 
-            --gold: #FFD700; --gold-dim: #b8860b; --bg: #050505; --green: #00ff41; --gray: #888; --alert: #ffcc00; --red: #ff3333; --admin: #ff0000;
+            --gold: #FFD700; --gold-dim: #b8860b; --bg: #050505; --green: #00ff41; --gray: #888; --alert: #ffcc00; --red: #ff3333; --admin: #ff0000; --cyan: #00ffff;
         }
 
         body { 
@@ -99,7 +99,19 @@
         .btn-small { font-size: 0.8em; padding: 10px 15px; width: auto; border: 1px solid var(--gold-dim); background: rgba(0,0,0,0.5); color: #ccc; }
         .btn-small:hover { border-color: var(--gold); color: var(--gold); background: rgba(255,215,0,0.1); }
 
-        #security-warning { display:none; background: rgba(0, 255, 255, 0.05); border: 1px solid cyan; padding: 10px; margin-top: 10px; border-radius: 8px; font-size: 0.8em; color: cyan; text-shadow: 0 0 5px cyan; }
+        /* Security Box V18 Style */
+        .security-blue-box { 
+            display:none; 
+            background: rgba(0, 255, 255, 0.05); 
+            border: 1px solid var(--cyan); 
+            padding: 12px; 
+            margin: 15px 0; 
+            border-radius: 12px; 
+            font-size: 0.85em; 
+            color: var(--cyan); 
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.4); 
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+        }
     
         /* Progress */
         .progress-container { width: 100%; background-color: #222; border-radius: 10px; margin: 15px 0; border: 1px solid #444; height: 28px; position: relative; overflow: hidden; }
@@ -243,10 +255,15 @@
 
     <div class="card">
         <h3>🔒 ANCIENT VAULT (V4)</h3>
-        <p class="small-txt">APY: <span id="dynamicAPY" class="highlight">DYNAMIC HIGH YIELD</span></p>
+        <p class="small-txt">APY: <span id="dynamicAPY" class="highlight" style="color:cyan;">WAITING FOR LAUNCH...</span></p>
         
-        <div id="security-warning">
+        <div id="blue-security-msg" class="security-blue-box" style="display:block;">
             🛡️ <b>SECURITY ACTIVE:</b> Early pool protection enabled.<br>Rewards are normalized to prevent draining.
+        </div>
+        
+        <div style="background: rgba(255, 215, 0, 0.05); border: 1px solid #444; padding: 10px; border-radius: 8px; margin: 15px 0;">
+            <span class="stat-label">TOTAL POOL STAKED</span><br>
+            <span id="totalStakedDisplay" style="font-size: 1.3em; font-weight: bold; color: var(--gold-dim);">Loading...</span>
         </div>
         
         <div style="background: rgba(0, 50, 0, 0.4); border: 1px solid var(--green); padding: 15px; border-radius: 12px; margin: 15px 0;">
@@ -560,7 +577,55 @@
             document.getElementById('userAspBal').innerText = parseFloat(ethers.utils.formatEther(rawAsp)).toFixed(4);
             
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
-            try { const isSafety = await stkC.isSafetyModeActive(); if(isSafety) document.getElementById('security-warning').style.display = 'block'; else document.getElementById('security-warning').style.display = 'none'; } catch(e) {}
+            
+            // --- TOTAL STAKED (NUEVO) ---
+            try {
+                const totalStakedBn = await stkC.totalSupply();
+                const totalStakedVal = parseFloat(ethers.utils.formatEther(totalStakedBn));
+                document.getElementById('totalStakedDisplay').innerText = totalStakedVal.toLocaleString(undefined, {maximumFractionDigits: 0}) + " APEPE";
+            } catch(e) {
+                document.getElementById('totalStakedDisplay').innerText = "0 APEPE";
+            }
+
+            // --- ESTADO DEX Y APY LOGIC ---
+            let isLaunched = false;
+            try { isLaunched = await stkC.dexReady(); } catch(e) {}
+
+            const statusEl = document.getElementById('dexStatus');
+            const apyEl = document.getElementById('dynamicAPY');
+            const blueMsg = document.getElementById('blue-security-msg');
+
+            if(!isLaunched) { 
+                statusEl.innerText = "WAITING FOR LAUNCH..."; 
+                statusEl.style.color = "cyan";
+                
+                // Muestra mensaje azul, oculta APY Numérico
+                blueMsg.style.display = 'block';
+                apyEl.innerText = "WAITING FOR LAUNCH...";
+                apyEl.style.color = "cyan";
+            } else { 
+                statusEl.innerText = "LIVE! REWARDS GENERATING ⚡"; 
+                statusEl.style.color = "#00ff00";
+                
+                // Oculta mensaje azul, calcula APY real
+                blueMsg.style.display = 'none';
+                
+                try {
+                    const rRate = await stkC.rewardRate();
+                    const tSupply = await stkC.totalSupply();
+                    const rRateNum = parseFloat(ethers.utils.formatEther(rRate));
+                    const tSupplyNum = parseFloat(ethers.utils.formatEther(tSupply));
+
+                    if (tSupplyNum > 0 && rRateNum > 0) {
+                        const yearlyRewards = rRateNum * 31536000;
+                        const apy = (yearlyRewards / tSupplyNum) * 100;
+                        apyEl.innerText = apy.toLocaleString(undefined, {maximumFractionDigits: 0}) + "% APY";
+                        apyEl.style.color = "#00ff00";
+                    } else {
+                        apyEl.innerText = "DYNAMIC HIGH YIELD";
+                    }
+                } catch(e) { apyEl.innerText = "DYNAMIC HIGH YIELD"; }
+            }
 
             const rew = await stkC.earned(user);
             const rewVal = parseFloat(ethers.utils.formatUnits(rew, 18));
@@ -576,24 +641,6 @@
             const stakedAmount = parseFloat(ethers.utils.formatEther(stakedBal));
             document.getElementById('myStakedAmt').innerText = stakedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
 
-            // --- INTENTO DE CÁLCULO DE APY REAL ---
-            try {
-                const rRate = await stkC.rewardRate();
-                const tSupply = await stkC.totalSupply();
-                const rRateNum = parseFloat(ethers.utils.formatEther(rRate));
-                const tSupplyNum = parseFloat(ethers.utils.formatEther(tSupply));
-
-                if (tSupplyNum > 0 && rRateNum > 0) {
-                    // Formula: (Tokens por segundo * segundos al año) / Total Staked * 100
-                    const yearlyRewards = rRateNum * 31536000;
-                    const apy = (yearlyRewards / tSupplyNum) * 100;
-                    document.getElementById('dynamicAPY').innerText = apy.toLocaleString(undefined, {maximumFractionDigits: 0}) + "% APY";
-                    document.getElementById('dynamicAPY').style.color = "#00ff00";
-                }
-            } catch(e) { /* Si falla, se queda el texto por defecto "DYNAMIC HIGH YIELD" */ }
-
-            const statusEl = document.getElementById('dexStatus');
-            try { const isLaunched = await stkC.dexReady(); if(!isLaunched) { statusEl.innerText = "WAITING FOR LAUNCH..."; statusEl.style.color = "cyan"; } else { statusEl.innerText = "LIVE! REWARDS GENERATING ⚡"; statusEl.style.color = "#00ff00"; } } catch(e) {}
         } catch(e) { console.error(e); }
     }
 
