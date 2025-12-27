@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v17 (Auto-Price)</title>
+    <title>APEPE - Pharaoh's Portal v18 (Pagination)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -78,8 +78,10 @@
         .stat-label { font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
         .stat-val { font-size: 1.2em; font-weight: 700; color: #fff; }
 
+        /* Estilos mejorados Admin */
         .admin-panel { border: 2px solid var(--admin); background: rgba(50, 0, 0, 0.5); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
-        .btn-admin { background: var(--admin); color: #fff; font-size: 0.8em; margin: 5px 0; }
+        .btn-admin { background: var(--admin); color: #fff; font-size: 0.8em; margin: 5px 0; transition: 0.2s; cursor: pointer; border: 1px solid #500; }
+        .btn-admin:hover { background: #ff3333; transform: scale(1.05); box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
         
         .footer { margin-top: 40px; border-top: 1px solid #222; padding-top: 20px; }
         .social-links a { color: #666; text-decoration: none; margin: 0 15px; font-size: 1.1em; transition: 0.3s; display: inline-block; }
@@ -109,15 +111,18 @@
         .supply-gold { color: var(--gold); font-weight: bold; }
 
         /* --- ESTILOS PARA EL LIVE FEED --- */
-        .feed-container { max-height: 250px; overflow-y: auto; text-align: left; margin-top: 15px; padding-right: 5px; }
+        .feed-container { text-align: left; margin-top: 15px; padding-right: 5px; min-height: 200px; }
         .feed-item { padding: 10px 0; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; animation: fadeIn 0.5s ease-out; }
         .feed-wallet { color: var(--gold); font-weight: bold; font-family: 'Rajdhani', sans-serif; }
         .feed-amounts { text-align: right; line-height: 1.2; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+        
+        /* Controles de Paginación */
+        .pagination-ctrl { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
+        .page-btn { background: transparent; border: 1px solid #444; color: #888; padding: 5px 10px; font-size: 0.75em; cursor: pointer; border-radius: 4px; }
+        .page-btn:hover { border-color: var(--gold); color: var(--gold); }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: #333; color: #555; }
 
-        /* --- NUEVO: AVISO PRECIO --- */
+        /* AVISO PRECIO */
         #price-alert { display: none; background: rgba(255, 0, 0, 0.1); border: 1px dashed var(--red); padding: 10px; border-radius: 8px; margin: 15px 0; text-align: center; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 51, 51, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); } }
 
@@ -175,10 +180,20 @@
         </div>
     </div>
 
-    <div class="card" style="padding-bottom: 10px;">
-        <h3>📜 RECENT ACTIVITY</h3>
+    <div class="card" style="padding-bottom: 15px;">
+        <h3 style="margin-bottom:5px;">
+            📜 RECENT ACTIVITY 
+            <a href="https://explorer.parallaxchain.org/address/0x241D981d656808b30f2cC83242a307B6EF0A5e4f" target="_blank" style="font-size:0.5em; vertical-align:middle; text-decoration:none; margin-left:5px;" class="btn-white">🔗 View Explorer</a>
+        </h3>
+        
         <div id="liveFeedList" class="feed-container small-txt">
-            <p style="text-align:center; opacity: 0.6;">Connect Wallet to view activity... 🔒</p>
+            <p style="text-align:center; opacity: 0.6; padding-top:20px;">Connect Wallet to view activity... 🔒</p>
+        </div>
+
+        <div id="pagination" class="pagination-ctrl hidden">
+            <button id="prevPageBtn" class="page-btn" onclick="changePage(-1)">◀ PREV</button>
+            <span id="pageIndicator" class="small-txt" style="align-self:center;">Page 1</span>
+            <button id="nextPageBtn" class="page-btn" onclick="changePage(1)">NEXT ▶</button>
         </div>
     </div>
 
@@ -317,7 +332,10 @@
     const INITIAL_SUPPLY = 3000000; 
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
     let laxPriceUsd = 0.07; 
-    let currentExchangeRate = 20; // Default
+    let currentExchangeRate = 20; 
+    let allFeedLogs = []; // Almacena todas las compras para paginación
+    let currentPage = 1;
+    const itemsPerPage = 5;
 
     // --- ABI ---
     const ABI = [
@@ -336,8 +354,8 @@
         "function balanceOf(address account) external view returns (uint256)", 
         "function approve(address s, uint256 a) public returns (bool)",
         "function allowance(address o, address s) public view returns (uint256)",
-        "function rate() public view returns (uint256)", // LECTURA DE PRECIO
-        "function setRate(uint256 _newRate) external"   // CAMBIO DE PRECIO
+        "function rate() public view returns (uint256)",
+        "function setRate(uint256 _newRate) external"
     ];
 
     let signer, provider;
@@ -350,12 +368,14 @@
         handleBuyInput("");
     };
 
+    // --- CARGA DE FEED CON PAGINACIÓN ---
     async function loadRecentBuys() {
         try {
             if (!provider) return; 
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
             const feedDiv = document.getElementById('liveFeedList');
             feedDiv.innerHTML = "<p style='text-align:center; opacity:0.6;'>Scanning blockchain (Deep Scan)... ⏳</p>";
+            
             const latestBlock = await provider.getBlockNumber();
             const BLOCK_RANGE = 50000; 
             const fromBlock = Math.max(0, latestBlock - BLOCK_RANGE);
@@ -364,23 +384,50 @@
 
             if (logs.length === 0) {
                 feedDiv.innerHTML = "<p style='text-align:center; opacity:0.6;'>No recent activity detected.</p>";
+                document.getElementById('pagination').classList.add('hidden');
                 return;
             }
-            feedDiv.innerHTML = ""; 
-            const recentLogs = logs.reverse().slice(0, 10);
-            recentLogs.forEach(log => {
-                const buyer = log.args.buyer;
-                const shortBuyer = buyer.substring(0, 6) + "..." + buyer.substring(38);
-                const laxAmt = parseFloat(ethers.utils.formatEther(log.args.nativeAmount)).toFixed(2);
-                const apepeAmt = parseFloat(ethers.utils.formatEther(log.args.tokenAmount)).toLocaleString(undefined, {maximumFractionDigits: 0});
-                const itemHtml = `
-                    <div class="feed-item">
-                        <div><span style="font-size:1.2em;">🐸</span> Wallet <span class="feed-wallet">${shortBuyer}</span><span class="small-txt"><br>bought</span></div>
-                        <div class="feed-amounts"><span class="highlight">${apepeAmt} APEPE</span><br><span class="small-txt">for ${laxAmt} LAX</span></div>
-                    </div>`;
-                feedDiv.innerHTML += itemHtml;
-            });
+
+            // Guardar logs invertidos (más nuevos primero)
+            allFeedLogs = logs.reverse();
+            currentPage = 1;
+            renderPage(currentPage);
+            document.getElementById('pagination').classList.remove('hidden');
+
         } catch (e) { console.error("Feed Error:", e); document.getElementById('liveFeedList').innerHTML = "<p style='text-align:center; color:var(--red); opacity:0.7;'>Feed unavailable</p>"; }
+    }
+
+    // --- RENDERIZAR PÁGINA ---
+    function renderPage(page) {
+        const feedDiv = document.getElementById('liveFeedList');
+        feedDiv.innerHTML = "";
+        
+        const start = (page - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageLogs = allFeedLogs.slice(start, end);
+
+        pageLogs.forEach(log => {
+            const buyer = log.args.buyer;
+            const shortBuyer = buyer.substring(0, 6) + "..." + buyer.substring(38);
+            const laxAmt = parseFloat(ethers.utils.formatEther(log.args.nativeAmount)).toFixed(2);
+            const apepeAmt = parseFloat(ethers.utils.formatEther(log.args.tokenAmount)).toLocaleString(undefined, {maximumFractionDigits: 0});
+            const itemHtml = `
+                <div class="feed-item">
+                    <div><span style="font-size:1.2em;">🐸</span> Wallet <span class="feed-wallet">${shortBuyer}</span><span class="small-txt"><br>bought</span></div>
+                    <div class="feed-amounts"><span class="highlight">${apepeAmt} APEPE</span><br><span class="small-txt">for ${laxAmt} LAX</span></div>
+                </div>`;
+            feedDiv.innerHTML += itemHtml;
+        });
+
+        // Actualizar botones
+        document.getElementById('pageIndicator').innerText = `Page ${page}`;
+        document.getElementById('prevPageBtn').disabled = (page === 1);
+        document.getElementById('nextPageBtn').disabled = (end >= allFeedLogs.length);
+    }
+
+    window.changePage = function(direction) {
+        currentPage += direction;
+        renderPage(currentPage);
     }
 
     async function connect() {
@@ -421,7 +468,6 @@
     function handleBuyInput(valStr) {
         const val = parseFloat(valStr);
         const buyBtn = document.getElementById('buyBtn');
-        // USA EL PRECIO AUTOMÁTICO (currentExchangeRate)
         document.getElementById('aspPreview').innerText = (val > 0) ? (val * currentExchangeRate).toLocaleString() : "0";
         document.getElementById('usdCost').innerText = (val > 0) ? (val * laxPriceUsd).toFixed(2) : "0.00";
         if (!val || val < 0.01) { 
@@ -449,17 +495,16 @@
         } catch(e) { console.error(e); alert("Transaction failed."); document.getElementById('pre-loading').classList.add('hidden'); document.getElementById('buy-section').classList.remove('hidden'); }
     };
 
-    // --- ADMIN ACTIONS ---
+    // --- ADMIN ACTIONS (SAFE) ---
     document.getElementById('adminWithdrawBtn').onclick = async () => {
-        try { if(!confirm("Withdraw ALL LAX?")) return; await ensureNetwork(); const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer); const tx = await preC.withdrawNativeFunds(); await tx.wait(); alert("FUNDS WITHDRAWN! 💰"); } catch(e) { alert("Error: " + e.message); }
+        try { if(!confirm("⚠️ SECURITY CHECK\n\nWithdraw ALL LAX from contract to your wallet?")) return; await ensureNetwork(); const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer); const tx = await preC.withdrawNativeFunds(); await tx.wait(); alert("FUNDS WITHDRAWN! 💰"); } catch(e) { alert("Error: " + e.message); }
     };
     document.getElementById('adminStartDexBtn').onclick = async () => {
-        try { if(!confirm("ENABLE DEX & START VESTING?")) return; await ensureNetwork(); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.enableDex(); await tx.wait(); alert("DEX ENABLED! 🚀"); loadData(); } catch(e) { alert("Error: " + e.message); }
+        try { if(!confirm("⚠️ LAUNCH WARNING\n\nAre you sure you want to ENABLE DEX & START VESTING?\nThis cannot be undone.")) return; await ensureNetwork(); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.enableDex(); await tx.wait(); alert("DEX ENABLED! 🚀"); loadData(); } catch(e) { alert("Error: " + e.message); }
     };
-    // NUEVO: CAMBIAR PRECIO
     window.setRate = async (newRate) => {
         try {
-            if(!confirm(`⚠️ CHANGE PRICE?\n\nNew Rate: 1 LAX = ${newRate} APEPE\n(Lower rate = Higher price)`)) return;
+            if(!confirm(`⚠️ CHANGE PRICE CHECK\n\nSet New Rate to: 1 LAX = ${newRate} APEPE?\n\n(This will make the token MORE EXPENSIVE)`)) return;
             await ensureNetwork();
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
             const tx = await preC.setRate(newRate);
@@ -482,23 +527,18 @@
             const user = await signer.getAddress();
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
             
-            // --- DETECTAR PRECIO (RATE) AUTOMÁTICAMENTE ---
+            // --- DETECTAR PRECIO ---
             try {
                 const rateBn = await preC.rate();
                 currentExchangeRate = rateBn.toNumber();
-                
-                // LÓGICA DEL CARTEL DE PRECIO
                 if (currentExchangeRate < 20) {
                     document.getElementById('price-alert').style.display = 'block';
                     document.getElementById('currentRateDisplay').innerText = currentExchangeRate;
-                    // Calcular porcentaje de subida: ((20 - rate) / rate) * 100
-                    // Ejemplo: rate 10 -> (10/10)*100 = 100% subida
                     let increase = ((20 - currentExchangeRate) / currentExchangeRate) * 100;
                     document.getElementById('percentIncrease').innerText = "+" + increase.toFixed(0);
                 } else {
                     document.getElementById('price-alert').style.display = 'none';
                 }
-                // Actualizar calculadora con el nuevo rate
                 handleBuyInput(document.getElementById('laxInput').value);
             } catch(e) { console.log("Error fetching rate", e); }
 
@@ -511,7 +551,7 @@
             const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
             let sold = effectiveTotal - left;
             if (sold < 0) sold = 0; 
-            let laxRaised = sold / 20; // Aproximado base
+            let laxRaised = sold / 20; 
 
             document.getElementById('laxRaised').innerText = laxRaised.toLocaleString(undefined, {maximumFractionDigits:2});
             document.getElementById('tokensSold').innerText = sold.toLocaleString(undefined, {maximumFractionDigits:0});
