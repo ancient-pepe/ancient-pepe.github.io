@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v10 (VaultPro 2.1)</title>
+    <title>APEPE - Pharaoh's Portal v11 (VaultPro 2.1)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -121,7 +121,8 @@
     <p class="small-txt">OFFICIAL IMPERIAL PORTAL</p>
     
     <button id="connectBtn" class="btn-gold">Connect MetaMask 🦊</button>
-    <button id="addNetworkBtn" class="btn-white" style="font-size: 0.75em; margin-top: 0; padding: 10px;">Add Parallax Network ⛓️</button>
+    <button id="addTokenBtn" class="btn-white" style="font-size: 0.75em; margin-top: 5px; padding: 10px;">➕ Add $APEPE to MetaMask</button>
+    
     <div id="walletAddress" class="small-txt" style="margin-top: 10px;">Not Connected</div>
 
     <div id="adminPanel" class="admin-panel">
@@ -242,8 +243,7 @@
             <p class="status-msg">Confirming on blockchain...</p>
         </div>
 
-        <button id="addTokenBtn" class="btn-white" style="margin-top:10px; font-size: 0.7em; padding: 8px;">➕ Add $APEPE to MetaMask</button>
-    </div>
+        </div>
     
     <div class="extra-links">
         <button onclick="window.location.href='lore.html'" class="btn-small">📜 READ LORE</button>
@@ -302,10 +302,40 @@
         handleBuyInput("");
     };
 
+    // --- AUTO NETWORK SWITCH LOGIC ---
+    async function switchToParallax() {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x83E' }], // 2110
+            });
+        } catch (switchError) {
+            // This error code indicates that the chain has not been added to MetaMask.
+            if (switchError.code === 4902) {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: '0x83E',
+                            chainName: 'Parallax Mainnet',
+                            nativeCurrency: { name: 'LAX', symbol: 'LAX', decimals: 18 },
+                            rpcUrls: ['https://rpc.parallaxchain.org'],
+                            blockExplorerUrls: ['https://explorer.parallaxchain.org']
+                        }],
+                    });
+                } catch (addError) { console.error(addError); }
+            }
+        }
+    }
+
     async function connect() {
         if (!window.ethereum) return;
         try {
             const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            
+            // AUTOMATICALLY TRY TO ADD/SWITCH NETWORK ON CONNECT
+            await switchToParallax();
+
             provider = new ethers.providers.Web3Provider(window.ethereum);
             signer = provider.getSigner();
             document.getElementById('connectBtn').innerText = "CONNECTED ✅";
@@ -586,12 +616,8 @@
         document.getElementById(`${type}-${step === 1 ? 'step1' : step === 'loading' ? 'loading' : 'step2'}`).classList.remove('hidden');
     }
 
-    document.getElementById('addNetworkBtn').onclick = async () => {
-        await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{ chainId: '0x83E', chainName: 'Parallax Mainnet', nativeCurrency: { name: 'LAX', symbol: 'LAX', decimals: 18 }, rpcUrls: ['https://rpc.parallaxchain.org'], blockExplorerUrls: ['https://explorer.parallaxchain.org'] }]
-        });
-    };
+    // Removed the manual addNetworkBtn listener because it's now automatic.
+    
     document.getElementById('addTokenBtn').onclick = async () => {
         await window.ethereum.request({
             method: 'wallet_watchAsset',
