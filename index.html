@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v9.0 Pro</title>
+    <title>APEPE - Pharaoh's Portal v9.1 Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -33,8 +33,9 @@
 
         @keyframes fadeIn { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
 
+        /* CABECERA CORREGIDA (Rectangular) */
         .header-box { width: 100%; margin-bottom: 25px; display: flex; justify-content: center; align-items: center; background: transparent; }
-        .header-img { max-width: 100%; height: auto; display: block; transition: transform 0.5s; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); border-radius: 50%; border: 2px solid var(--gold); }
+        .header-img { max-width: 100%; height: auto; display: block; transition: transform 0.5s; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); /* Eliminado border-radius y border */ }
         .header-img:hover { transform: scale(1.02); }
         
         button { 
@@ -106,7 +107,7 @@
 
 <div class="container">
     <div class="header-box">
-        <img src="https://i.ibb.co/zW5mcCs9/unnamed.jpg" alt="Ancient Satoshi Pepe" class="header-img">
+        <img src="https://i.ibb.co/0VMjVWjS/1000042544.jpg" alt="Ancient Satoshi Pepe" class="header-img">
     </div>
     
     <h2>ANCIENT SATOSHI PEPE 🏺</h2>
@@ -449,7 +450,7 @@
             // Vault V4 Data
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
             
-            // --- AQUÍ ESTÁ LA LÓGICA DE SEGURIDAD (Tu imagen) ---
+            // --- LÓGICA DE SEGURIDAD ---
             try {
                 const isSafety = await stkC.isSafetyModeActive();
                 if(isSafety) document.getElementById('security-warning').style.display = 'block';
