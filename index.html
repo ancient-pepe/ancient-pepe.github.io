@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEPE - Pharaoh's Portal v9.5 Final</title>
+    <title>APEPE - Pharaoh's Portal v10 (VaultPro 2.1)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -222,20 +222,24 @@
             <input type="number" id="stakeInput" placeholder="Amount of $APEPE">
             <button id="stakeBtn" class="btn-green">STAKE $APEPE</button>
             
-            <button id="unstakeBtn" class="btn-red" style="margin-top:15px; border-color:#555; background: #222;">🔓 UNSTAKE PRINCIPAL (Keep Rewards)</button>
-            <p class="small-txt" style="margin-top:5px; font-size:0.7em;">*You can always withdraw your principal.</p>
+            <button id="unstakeBtn" class="btn-red" style="margin-top:15px; border-color:#555; background: #222;">🔓 UNSTAKE & EXIT</button>
+            <p id="unstake-msg" class="small-txt" style="margin-top:5px; font-size:0.7em;">*You can always withdraw your principal.</p>
             
             <div class="warning-box">
-                ⚠️ <b>IMPORTANT:</b> Rewards are vesting for <b>6 MONTHS</b> after DEX Launch. You can compound freely.
+                ⚠️ <b>IMPORTANT:</b> Rewards are vested for <b>6 MONTHS</b> after DEX Launch. 
+                <br>Exit early = <b>LOSE REWARDS</b>.
+                <br>Compound = <b>KEEP REWARDS</b>.
             </div>
         </div>
         
         <div id="restake-ui">
             <button id="restakeBtn" class="btn-disabled" style="margin-top:20px; font-size: 0.9em;" disabled>♻️ NO REWARDS TO COMPOUND</button>
+            <button id="claimBtn" class="btn-disabled" style="margin-top:10px; font-size: 0.9em;" disabled>🔒 CLAIM LOCKED (VESTING)</button>
         </div>
+
         <div id="restake-loading" class="hidden" style="margin-top:20px;">
             <button class="btn-disabled">PROCESSING... ⏳</button>
-            <p class="status-msg">Confirming on blockchain...<br>This process can take up to 30 minutes.</p>
+            <p class="status-msg">Confirming on blockchain...</p>
         </div>
 
         <button id="addTokenBtn" class="btn-white" style="margin-top:10px; font-size: 0.7em; padding: 8px;">➕ Add $APEPE to MetaMask</button>
@@ -258,21 +262,21 @@
 <script>
     // --- CONTRACT ADDRESSES ---
     const PRESALE_ADDR = "0x241D981d656808b30f2cC83242a307B6EF0A5e4f"; // V3
-    const STAKE_ADDR   = "0xE18866b3a9359F6cf19e3cDF2dF610cBBA14eb29"; // V4
+    const STAKE_ADDR   = "0x60BAB44FbD5fC025497AA1cf7366F4A73e71f9dD"; // V4 - VaultPro 2.1
     const APEPE_ADDR   = "0xd1060183552A88455f037a58B2aC639C7966a214"; // Token
     
-    // --- CONFIGURACIÓN DE LA PREVENTA ---
-    const INITIAL_SUPPLY = 3000000; // BASE PARA LA BARRA (3M)
+    // --- CONFIGURACIÓN ---
+    const INITIAL_SUPPLY = 3000000; 
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
     
     let laxPriceUsd = 0.07; 
 
-    // --- ABI ---
+    // --- ABI ACTUALIZADO ---
     const ABI = [
         // Presale V3
         "function buyTokens() public payable",
         "function withdrawNativeFunds() external",
-        // Vault V4
+        // Vault V4 (VaultPro 2.1)
         "function stake(uint256 _amount) external", 
         "function compound() external",
         "function withdraw(uint256 _amount) external",
@@ -280,6 +284,7 @@
         "function enableDex() external",
         "function isSafetyModeActive() external view returns (bool)", 
         "function dexReady() public view returns (bool)",
+        "function isPenaltyActive() public view returns (bool)", // Nueva función
         "function earned(address account) public view returns (uint256)",
         "function balanceOf(address account) external view returns (uint256)", 
         // ERC20
@@ -322,7 +327,6 @@
     function handleBuyInput(valStr) {
         const val = parseFloat(valStr);
         const buyBtn = document.getElementById('buyBtn');
-        // Rate: 1 LAX = 20 APEPE
         document.getElementById('aspPreview').innerText = (val > 0) ? (val * 20).toLocaleString() : "0";
         document.getElementById('usdCost').innerText = (val > 0) ? (val * laxPriceUsd).toFixed(2) : "0.00";
 
@@ -415,8 +419,17 @@
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
             const user = await signer.getAddress();
             const bal = await stkC.balanceOf(user);
+            
+            // Check penalty status for Alert Message
+            let warningMsg = "Withdraw your Principal?";
+            try {
+                const isPenalty = await stkC.isPenaltyActive();
+                if(isPenalty) warningMsg = "⚠️ WARNING: You are withdrawing BEFORE vesting ends.\n\nYou will receive your PRINCIPAL, but ALL REWARDS will be FORFEITED (Lost).\n\nAre you sure?";
+            } catch(e) {}
+
             if(bal.eq(0)) { alert("No stake to withdraw."); return; }
-            if(!confirm("Withdraw your Principal? Rewards will remain if vested.")) return;
+            if(!confirm(warningMsg)) return;
+            
             const tx = await stkC.withdraw(bal, { gasLimit: 500000 });
             await tx.wait();
             alert("PRINCIPAL WITHDRAWN! 🔓");
@@ -424,6 +437,7 @@
         } catch(e) { alert("Error: " + e.message); }
     };
 
+    // COMPOUND (Restake)
     document.getElementById('restakeBtn').onclick = async () => {
         try {
             document.getElementById('restake-ui').classList.add('hidden');
@@ -431,10 +445,27 @@
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
             const tx = await stkC.compound({ gasLimit: 500000 });
             await tx.wait();
-            alert("Compound Successful!");
+            alert("Compound Successful! ♻️");
             window.location.reload();
         } catch(e) { 
-            alert("Compound failed."); 
+            alert("Compound failed (Min 20 APEPE required)."); 
+            document.getElementById('restake-loading').classList.add('hidden');
+            document.getElementById('restake-ui').classList.remove('hidden');
+        }
+    };
+
+    // CLAIM (Get Reward)
+    document.getElementById('claimBtn').onclick = async () => {
+        try {
+            document.getElementById('restake-ui').classList.add('hidden');
+            document.getElementById('restake-loading').classList.remove('hidden');
+            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer);
+            const tx = await stkC.getReward({ gasLimit: 500000 });
+            await tx.wait();
+            alert("Rewards Claimed! 💰");
+            window.location.reload();
+        } catch(e) { 
+            alert("Claim failed or Locked."); 
             document.getElementById('restake-loading').classList.add('hidden');
             document.getElementById('restake-ui').classList.remove('hidden');
         }
@@ -448,25 +479,17 @@
             
             const aspC = new ethers.Contract(APEPE_ADDR, ABI, provider);
             
-            // --- CÁLCULO INTELIGENTE (LAX RAISED Y APEPE SOLD) ---
+            // Stats
             const contractAspBal = await aspC.balanceOf(PRESALE_ADDR);
             const left = parseFloat(ethers.utils.formatEther(contractAspBal));
-            
-            // Ajuste dinámico si el admin recarga el contrato
             const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
-            
-            // Tokens Vendidos
             let sold = effectiveTotal - left;
             if (sold < 0) sold = 0; 
-            
-            // LAX Recaudado (Sold / 20)
             let laxRaised = sold / 20;
 
-            // ACTUALIZACIÓN DEL DOM
             document.getElementById('laxRaised').innerText = laxRaised.toLocaleString(undefined, {maximumFractionDigits:2});
             document.getElementById('tokensSold').innerText = sold.toLocaleString(undefined, {maximumFractionDigits:0});
 
-            // Porcentaje (Sobre 3M o el efectivo actual)
             let percent = (sold / effectiveTotal) * 100;
             if (percent > 100) percent = 100;
             if (percent < 0) percent = 0;
@@ -477,7 +500,7 @@
             const rawAsp = await aspC.balanceOf(user);
             document.getElementById('userAspBal').innerText = parseFloat(ethers.utils.formatEther(rawAsp)).toFixed(4);
             
-            // Vault V4
+            // Vault Data
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
             
             try {
@@ -490,8 +513,9 @@
             const rewVal = parseFloat(ethers.utils.formatUnits(rew, 18));
             document.getElementById('myRewardsBig').innerText = rewVal.toFixed(4);
 
+            // LOGICA COMPOUND (Mínimo 20)
             const restakeBtn = document.getElementById('restakeBtn');
-            if(rewVal >= 1) {
+            if(rewVal >= 20) {
                 restakeBtn.disabled = false;
                 restakeBtn.classList.remove('btn-disabled');
                 restakeBtn.classList.add('btn-green');
@@ -500,8 +524,41 @@
                 restakeBtn.disabled = true;
                 restakeBtn.classList.add('btn-disabled');
                 restakeBtn.classList.remove('btn-green');
-                restakeBtn.innerText = "♻️ REWARDS TOO LOW";
+                restakeBtn.innerText = "♻️ COMPOUND (MIN 20 APEPE)";
             }
+
+            // LOGICA CLAIM & PENALTY
+            const claimBtn = document.getElementById('claimBtn');
+            const unstakeBtn = document.getElementById('unstakeBtn');
+            const unstakeMsg = document.getElementById('unstake-msg');
+            
+            try {
+                const isPenalty = await stkC.isPenaltyActive();
+                
+                if(isPenalty) {
+                    // Si hay penalización (Antes de 6 meses)
+                    claimBtn.disabled = true;
+                    claimBtn.classList.add('btn-disabled');
+                    claimBtn.classList.remove('btn-gold');
+                    claimBtn.innerText = "🔒 CLAIM LOCKED (VESTING)";
+                    
+                    unstakeBtn.innerText = "⚠️ UNSTAKE (YOU LOSE REWARDS)";
+                    unstakeMsg.innerText = "*Early exit forfeits ALL profits.";
+                } else {
+                    // Libre (Pasaron 6 meses)
+                    if(rewVal > 0) {
+                        claimBtn.disabled = false;
+                        claimBtn.classList.remove('btn-disabled');
+                        claimBtn.classList.add('btn-gold');
+                        claimBtn.innerText = "💰 CLAIM REWARDS TO WALLET";
+                    } else {
+                        claimBtn.innerText = "💰 CLAIM (NO REWARDS)";
+                    }
+                    
+                    unstakeBtn.innerText = "🔓 UNSTAKE PRINCIPAL";
+                    unstakeMsg.innerText = "*You can withdraw safely.";
+                }
+            } catch(e) { console.log("Dex not started yet"); }
 
             const stakedBal = await stkC.balanceOf(user);
             const stakedAmount = parseFloat(ethers.utils.formatEther(stakedBal));
@@ -514,7 +571,7 @@
                     statusEl.innerText = "WAITING FOR LAUNCH...";
                     statusEl.style.color = "cyan";
                 } else {
-                    statusEl.innerText = "LIVE! COUNTDOWN ACTIVE ⏳";
+                    statusEl.innerText = "LIVE! REWARDS GENERATING ⚡";
                     statusEl.style.color = "#00ff00"; 
                 }
             } catch(e) {}
