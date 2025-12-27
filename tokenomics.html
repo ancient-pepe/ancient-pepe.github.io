@@ -8,13 +8,14 @@
     <style>
         :root { 
             --gold: #FFD700; --gold-dim: #b8860b; --bg: #050505; --card-bg: rgba(20, 20, 20, 0.95);
-            /* Colores del Gráfico */
-            --c-dex: #00ff41;    /* Verde Hacker */
-            --c-rew: #FFD700;    /* Oro */
+            /* Colores para las 7 Categorías */
+            --c-dex: #00ff41;    /* Verde Hacker (DEX) */
+            --c-cex: #0088ff;    /* Azul (CEX) */
+            --c-rew: #FFD700;    /* Oro (Rewards/Vault) */
             --c-pre: #ff3333;    /* Rojo (Presale) */
-            --c-mkt: #00ffff;    /* Cyan */
-            --c-team: #9932CC;   /* Púrpura */
-            --c-dev: #ff8c00;    /* Naranja */
+            --c-mkt: #ff00ff;    /* Magenta (Marketing) */
+            --c-team: #9932CC;   /* Púrpura (Team) */
+            --c-air: #ffffff;    /* Blanco (Airdrop) */
         }
         body { background-color: var(--bg); background-image: radial-gradient(circle at center, #1a1a00 0%, #000000 100%); color: #ddd; font-family: 'Rajdhani', sans-serif; text-align: center; margin: 0; padding: 20px; min-height: 100vh; }
         h1, h2 { font-family: 'Cinzel', serif; color: var(--gold); text-shadow: 0 0 10px rgba(255, 215, 0, 0.3); margin: 10px 0; }
@@ -22,16 +23,17 @@
         .container { max-width: 600px; margin: auto; padding: 30px; border: 1px solid var(--gold-dim); border-radius: 20px; background: var(--card-bg); box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: fadeIn 1s ease-out; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 
-        /* --- EL QUESO IMPERIAL --- */
+        /* --- EL QUESO IMPERIAL (Gráfico CSS) --- */
         .pie-chart {
             width: 280px; height: 280px; border-radius: 50%; margin: 30px auto;
             background: conic-gradient(
-                var(--c-dex) 0% 47.6%,    /* DEX 47.6% */
-                var(--c-rew) 47.6% 72.8%, /* Rewards (5.3M) */
-                var(--c-pre) 72.8% 87.8%, /* Presale 15% */
-                var(--c-mkt) 87.8% 95%,   /* Marketing */
-                var(--c-team) 95% 98%,    /* Team */
-                var(--c-dev) 98% 100%     /* Dev */
+                var(--c-dex) 0% 23.8%,     /* DEX 5M */
+                var(--c-cex) 23.8% 47.6%,  /* CEX 5M */
+                var(--c-rew) 47.6% 72.8%,  /* Rewards 5.3M */
+                var(--c-pre) 72.8% 87.1%,  /* Presale 3M */
+                var(--c-mkt) 87.1% 94.2%,  /* Marketing 1.5M */
+                var(--c-team) 94.2% 99%,   /* Team 1M */
+                var(--c-air) 99% 100%      /* Airdrop 0.2M */
             );
             border: 4px solid var(--gold-dim);
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
@@ -45,12 +47,20 @@
         }
 
         .legend { list-style: none; padding: 0; text-align: left; margin-top: 30px; }
-        .legend li { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .legend li { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; }
         .legend li:last-child { border-bottom: none; }
+        .legend li:hover { background: rgba(255,255,255,0.05); transform: translateX(5px); }
+
+        /* Enlaces al Explorador */
+        .explorer-link { text-decoration: none; color: inherit; display: flex; width: 100%; justify-content: space-between; align-items: center; }
+        .explorer-link:hover .lbl { text-shadow: 0 0 8px currentColor; color: #fff; }
+        .explorer-link:hover .val { color: var(--gold); }
+
         .dot { width: 12px; height: 12px; display: inline-block; margin-right: 10px; border-radius: 50%; box-shadow: 0 0 5px currentColor; }
         
         .val { font-weight: bold; color: #fff; font-size: 1.1em; }
-        .lbl { font-size: 0.95em; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        .lbl { font-size: 0.95em; color: #aaa; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; }
+        .icon-link { font-size: 0.8em; margin-left: 5px; opacity: 0.5; }
 
         .btn-back { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 12px 30px; font-family: 'Cinzel', serif; cursor: pointer; margin-top: 30px; text-decoration: none; display: inline-block; transition: 0.3s; }
         .btn-back:hover { background: var(--gold); color: #000; box-shadow: 0 0 15px var(--gold); }
@@ -66,31 +76,58 @@
         <div class="pie-chart"></div>
 
         <ul class="legend">
+            
             <li>
-                <span><span class="dot" style="background: var(--c-dex);"></span><span class="lbl">DEX Liquidity Pair</span></span>
-                <span class="val">10,000,000</span>
+                <a href="https://explorer.parallaxprotocol.org/address/0x57DB4E4B824937d641D05Cd355027e85E2Fb4958" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-dex);"></span><span class="lbl">DEX Liquidity Pair <span class="icon-link">🔗</span></span></span>
+                    <span class="val">5,000,000</span>
+                </a>
             </li>
+            
             <li>
-                <span><span class="dot" style="background: var(--c-rew);"></span><span class="lbl">Vault Rewards (2 Years)</span></span>
-                <span class="val">5,300,000</span>
+                <a href="https://explorer.parallaxprotocol.org/address/0x97aB8E7A343e9215883d6bdA434959bd4625d838" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-cex);"></span><span class="lbl">CEX Reserve <span class="icon-link">🔗</span></span></span>
+                    <span class="val">5,000,000</span>
+                </a>
             </li>
+
             <li>
-                <span><span class="dot" style="background: var(--c-pre);"></span><span class="lbl" style="color:var(--c-pre);">⚠️ Presale Allocation</span></span>
-                <span class="val">3,150,000</span>
+                <a href="https://explorer.parallaxprotocol.org/address/0xE18866b3a9359F6cf19e3cDF2dF610cBBA14eb29?tab=tokens" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-rew);"></span><span class="lbl">Staking Rewards (Vault) <span class="icon-link">🔗</span></span></span>
+                    <span class="val">5,300,000</span>
+                </a>
             </li>
+
             <li>
-                <span><span class="dot" style="background: var(--c-mkt);"></span><span class="lbl">Marketing & CEX</span></span>
-                <span class="val">1,500,000</span>
+                <a href="https://explorer.parallaxprotocol.org/address/0x3f6C26DA541Ea9Ca4C06a89B05722a2fF7E28c64" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-pre);"></span><span class="lbl" style="color:var(--c-pre);">⚠️ Presale Allocation <span class="icon-link">🔗</span></span></span>
+                    <span class="val">3,000,000</span>
+                </a>
             </li>
+
             <li>
-                <span><span class="dot" style="background: var(--c-team);"></span><span class="lbl">Team</span></span>
-                <span class="val">600,000</span>
+                <a href="https://explorer.parallaxprotocol.org/address/0x21056051f1AD540f5AdA8eD843EA20e306f7340e" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-mkt);"></span><span class="lbl">Marketing <span class="icon-link">🔗</span></span></span>
+                    <span class="val">1,500,000</span>
+                </a>
             </li>
+
             <li>
-                <span><span class="dot" style="background: var(--c-dev);"></span><span class="lbl">Dev ($LAX Fund)</span></span>
-                <span class="val">450,000</span>
+                <a href="https://explorer.parallaxprotocol.org/address/0xdb34c086828e1874Cf515491F8Dc0EEB7FfA09fc" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-team);"></span><span class="lbl">Team R&D <span class="icon-link">🔗</span></span></span>
+                    <span class="val">1,000,000</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="https://explorer.parallaxprotocol.org/address/0xA581dc4C945ecd95b81d742675571E85fB6F2532" target="_blank" class="explorer-link">
+                    <span><span class="dot" style="background: var(--c-air);"></span><span class="lbl">Community Airdrop <span class="icon-link">🔗</span></span></span>
+                    <span class="val">200,000</span>
+                </a>
             </li>
         </ul>
+
+        <p style="font-size: 0.7em; color: #666; margin-top: 20px;">*Click on any category to verify funds on the blockchain.</p>
 
         <a href="index.html" class="btn-back">⬅ RETURN TO PORTAL</a>
     </div>
