@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>APEPE - Pharaoh's Portal v27</title>
+    <title>APEPE - Pharaoh's Portal v28</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- ESTILOS BASE --- */
+        /* --- ESTILOS BASE (MÓVIL / DEFAULT) --- */
         :root { 
             --gold: #FFD700; --gold-dim: #b8860b; --bg: #050505; --green: #00ff41; --gray: #888; --alert: #ffcc00; --red: #ff3333; --admin: #ff0000; --cyan: #00ffff;
         }
@@ -22,6 +22,7 @@
             overflow-x: hidden;
         }
 
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
@@ -77,14 +78,13 @@
         .stat-label { font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
         .stat-val { font-size: 1.2em; font-weight: 700; color: #fff; }
 
-        /* Admin */
         .admin-panel { border: 2px solid var(--admin); background: rgba(50, 0, 0, 0.5); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
         
         /* FIX BOTONES DEV: Hover forzado */
         .btn-admin { 
             background: var(--admin); color: #fff; font-size: 0.8em; margin: 5px 0; 
             transition: all 0.2s ease-in-out; cursor: pointer; border: 1px solid #500; 
-            position: relative; z-index: 10; /* Asegura que esté por encima */
+            position: relative; z-index: 10; 
         }
         .btn-admin:hover { 
             background: #ff0000 !important; 
@@ -106,10 +106,10 @@
         /* --- PROGRESS BAR REDISEÑADA --- */
         .progress-container { 
             width: 100%; 
-            background-color: #000; /* Fondo más oscuro */
+            background-color: #000; 
             border-radius: 12px; 
             margin: 15px 0; 
-            border: 2px solid #333; /* Borde más visible para delimitar */
+            border: 2px solid #333; 
             height: 28px; 
             position: relative; 
             overflow: hidden; 
@@ -169,6 +169,7 @@
                 background: transparent; box-shadow: none; border: none; backdrop-filter: none;
             }
 
+            /* HEADER CENTRADO EN PC */
             body:not(.mobile-mode) .header-box {
                 grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; 
                 align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,215,0,0.2); padding-bottom: 15px;
@@ -184,12 +185,9 @@
             body:not(.mobile-mode) #addTokenBtn { width: auto; margin: 0; display: inline-block; }
             body:not(.mobile-mode) #walletAddress { position: absolute; top: 95px; right: 30px; text-align: right; }
 
-            /* MAPPING DE COLUMNAS (GRID) */
-            /* Panel Central (Compra) al centro (Col 2) */
-            body:not(.mobile-mode) .panel-center { grid-column: 2 / 3; min-width: 0; }
-            /* Panel Izquierdo (Stats) a la izq (Col 1) */
+            /* Columnas */
             body:not(.mobile-mode) .panel-left { grid-column: 1 / 2; }
-            /* Panel Derecho (Vault) a la der (Col 3) */
+            body:not(.mobile-mode) .panel-center { grid-column: 2 / 3; min-width: 0; }
             body:not(.mobile-mode) .panel-right { grid-column: 3 / 4; }
 
             /* Estilo Cards PC */
@@ -290,6 +288,11 @@
                 <a href="https://x.com/Ancientsatpepe" target="_blank" class="social-link">✖️ @Ancientsatpepe</a>
                 <a href="https://x.com/prlxchain" target="_blank" class="social-link">✖️ @prlxchain</a>
             </div>
+
+            <div class="extra-links" style="margin-top: 15px;">
+                <button onclick="window.location.href='lore.html'" class="btn-small">📜 LORE</button>
+                <button onclick="window.location.href='tokenomics.html'" class="btn-small">📊 TOKENS</button>
+            </div>
         </div>
 
         <div class="panel-left">
@@ -343,11 +346,8 @@
                     <span id="pageIndicator" class="small-txt" style="align-self:center;">P1</span>
                     <button id="nextPageBtn" class="page-btn" onclick="changePage(1)">▶</button>
                 </div>
-                <div class="extra-links">
-                    <button onclick="window.location.href='lore.html'" class="btn-small">📜 LORE</button>
-                    <button onclick="window.location.href='tokenomics.html'" class="btn-small">📊 TOKENS</button>
+                
                 </div>
-            </div>
         </div>
 
         <div class="panel-right">
@@ -425,6 +425,7 @@
     (function() {
         const userAgent = navigator.userAgent.toLowerCase();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+        
         if (window.ethereum && window.ethereum.isMetaMask && isMobile) {
             document.body.classList.add('mobile-mode');
         } else if (isMobile) {
@@ -434,7 +435,7 @@
 
     // --- CONTRACT ADDRESSES ---
     const PRESALE_ADDR = "0x241D981d656808b30f2cC83242a307B6EF0A5e4f"; // V3
-    const STAKE_ADDR   = "0x45a117ABe265623239a3c7A050EA7e8D7b040248"; // V3 FIXED (0x45...)
+    const STAKE_ADDR   = "0x45a117ABe265623239a3c7A050EA7e8D7b040248"; // V3 FIXED
     const APEPE_ADDR   = "0xd1060183552A88455f037a58B2aC639C7966a214"; // Token
     
     // --- CONFIGURACIÓN ---
@@ -481,6 +482,7 @@
         handleBuyInput("");
     };
 
+    // --- VIEW SWITCHING LOGIC ---
     function unlockDashboard() {
         document.getElementById('landing-view').classList.add('hidden');
         document.getElementById('dashboard-view').classList.remove('hidden');
@@ -620,7 +622,7 @@
             const left = parseFloat(ethers.utils.formatEther(contractAspBal));
             const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
             
-            // FIX BARRA DE VENTA:
+            // FIX BARRA DE VENTA
             let sold = INITIAL_SUPPLY - left;
             if (sold < 0) sold = 0; 
             let laxRaised = sold / 20; 
@@ -639,7 +641,7 @@
             
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
             
-            // --- TOTAL STAKED (FIXED) ---
+            // --- TOTAL STAKED ---
             try {
                 const totalStakedBn = await stkC.totalSupply();
                 const totalStakedVal = parseFloat(ethers.utils.formatEther(totalStakedBn));
@@ -671,6 +673,7 @@
                     const tSupply = await stkC.totalSupply();
                     const rRateNum = parseFloat(ethers.utils.formatEther(rRate));
                     const tSupplyNum = parseFloat(ethers.utils.formatEther(tSupply));
+
                     if (tSupplyNum > 0 && rRateNum > 0) {
                         const yearlyRewards = rRateNum * 31536000;
                         const apy = (yearlyRewards / tSupplyNum) * 100;
@@ -703,6 +706,7 @@
     document.getElementById('addTokenBtnLanding').onclick = async () => { await window.ethereum.request({ method: 'wallet_watchAsset', params: { type: 'ERC20', options: { address: APEPE_ADDR, symbol: 'APEPE', decimals: 18 } }, }); };
     document.getElementById('connectBtn').onclick = connect;
     
+    // Cargar feed en segundo plano
     async function loadRecentBuys() {
         try {
             if (!provider) return; 
