@@ -153,13 +153,15 @@
                 grid-template-columns: 350px 1fr 350px; 
                 gap: 40px; padding: 30px; overflow: visible; 
                 background: transparent; box-shadow: none; border: none; backdrop-filter: none;
-                /* FIX CLAVE: Alinear elementos al inicio (arriba) */
+                /* FIX 1: Alineación vertical arriba */
                 align-items: start; 
             }
 
             body:not(.mobile-mode) .header-box {
                 grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; 
                 align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,215,0,0.2); padding-bottom: 15px;
+                /* FIX 2: Header siempre en Fila 1 */
+                grid-row: 1;
             }
             body:not(.mobile-mode) .header-box::before { content: ""; display: block; }
 
@@ -172,10 +174,21 @@
             body:not(.mobile-mode) #addTokenBtn { width: auto; margin: 0; display: inline-block; }
             body:not(.mobile-mode) #walletAddress { position: absolute; top: 95px; right: 30px; text-align: right; }
 
-            /* Columnas */
-            body:not(.mobile-mode) .panel-left { grid-column: 1 / 2; }
-            body:not(.mobile-mode) .panel-center { grid-column: 2 / 3; min-width: 0; }
-            body:not(.mobile-mode) .panel-right { grid-column: 3 / 4; }
+            /* FIX 3: FORZAR FILA 2 PARA TODOS LOS PANELES */
+            /* Esto obliga a que se pongan uno al lado del otro, ignorando el orden HTML */
+            body:not(.mobile-mode) .panel-left { 
+                grid-column: 1 / 2; 
+                grid-row: 2; 
+            }
+            body:not(.mobile-mode) .panel-center { 
+                grid-column: 2 / 3; 
+                grid-row: 2; 
+                min-width: 0; 
+            }
+            body:not(.mobile-mode) .panel-right { 
+                grid-column: 3 / 4; 
+                grid-row: 2; 
+            }
 
             /* Estilo Cards PC */
             body:not(.mobile-mode) .card, body:not(.mobile-mode) .panel-left > div {
@@ -411,7 +424,6 @@
     (function() {
         const userAgent = navigator.userAgent.toLowerCase();
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-        
         if (window.ethereum && window.ethereum.isMetaMask && isMobile) {
             document.body.classList.add('mobile-mode');
         } else if (isMobile) {
@@ -468,7 +480,6 @@
         handleBuyInput("");
     };
 
-    // --- VIEW SWITCHING LOGIC ---
     function unlockDashboard() {
         document.getElementById('landing-view').classList.add('hidden');
         document.getElementById('dashboard-view').classList.remove('hidden');
@@ -586,6 +597,7 @@
             const user = await signer.getAddress();
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
             
+            // --- DETECTAR PRECIO ---
             try {
                 const rateBn = await preC.rate();
                 currentExchangeRate = rateBn.toNumber();
@@ -608,7 +620,7 @@
             const left = parseFloat(ethers.utils.formatEther(contractAspBal));
             const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
             
-            // FIX BARRA DE VENTA
+            // FIX BARRA DE VENTA: Asegurar que 'sold' no sea negativo
             let sold = INITIAL_SUPPLY - left;
             if (sold < 0) sold = 0; 
             let laxRaised = sold / 20; 
@@ -627,7 +639,7 @@
             
             const stkC = new ethers.Contract(STAKE_ADDR, ABI, provider);
             
-            // --- TOTAL STAKED ---
+            // --- TOTAL STAKED (FIXED: USA totalSupply PARA VER STAKE REAL) ---
             try {
                 const totalStakedBn = await stkC.totalSupply();
                 const totalStakedVal = parseFloat(ethers.utils.formatEther(totalStakedBn));
@@ -654,6 +666,7 @@
                 statusEl.innerText = "LIVE! REWARDS GENERATING ⚡"; 
                 statusEl.style.color = "#00ff00";
                 blueMsg.style.display = 'none';
+                
                 try {
                     const rRate = await stkC.rewardRate();
                     const tSupply = await stkC.totalSupply();
