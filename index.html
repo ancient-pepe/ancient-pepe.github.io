@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>APEPE - Pharaoh's Portal v29</title>
+    <title>APEPE - Pharaoh's Portal v30</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- ESTILOS BASE (MÓVIL / DEFAULT) --- */
+        /* --- ESTILOS BASE --- */
         :root { 
             --gold: #FFD700; --gold-dim: #b8860b; --bg: #050505; --green: #00ff41; --gray: #888; --alert: #ffcc00; --red: #ff3333; --admin: #ff0000; --cyan: #00ffff;
         }
@@ -22,7 +22,6 @@
             overflow-x: hidden;
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
@@ -164,14 +163,12 @@
                 grid-template-columns: 350px 1fr 350px; 
                 gap: 40px; padding: 30px; overflow: visible; 
                 background: transparent; box-shadow: none; border: none; backdrop-filter: none;
-                /* FIX 1: Alineación vertical arriba */
                 align-items: start; 
             }
 
             body:not(.mobile-mode) .header-box {
                 grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 1fr; 
                 align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,215,0,0.2); padding-bottom: 15px;
-                /* FIX 2: Header siempre en Fila 1 */
                 grid-row: 1;
             }
             body:not(.mobile-mode) .header-box::before { content: ""; display: block; }
@@ -186,24 +183,13 @@
             body:not(.mobile-mode) #walletAddress { position: absolute; top: 95px; right: 30px; text-align: right; }
 
             /* FIX 3: FORZAR FILA 2 PARA TODOS LOS PANELES */
-            /* Esto obliga a que se pongan uno al lado del otro, ignorando el orden HTML */
-            body:not(.mobile-mode) .panel-left { 
-                grid-column: 1 / 2; 
-                grid-row: 2; 
-            }
-            body:not(.mobile-mode) .panel-center { 
-                grid-column: 2 / 3; 
-                grid-row: 2; 
-                min-width: 0; 
-            }
-            body:not(.mobile-mode) .panel-right { 
-                grid-column: 3 / 4; 
-                grid-row: 2; 
-            }
+            body:not(.mobile-mode) .panel-left { grid-column: 1 / 2; grid-row: 2; }
+            body:not(.mobile-mode) .panel-center { grid-column: 2 / 3; grid-row: 2; min-width: 0; }
+            body:not(.mobile-mode) .panel-right { grid-column: 3 / 4; grid-row: 2; }
 
             /* Estilo Cards PC */
             body:not(.mobile-mode) .card, body:not(.mobile-mode) .panel-left > div {
-                margin-top: 0; margin-bottom: 20px; /* Quitamos margin-top extra en PC para que suban */
+                margin-top: 0; margin-bottom: 20px; 
                 background: rgba(10, 10, 10, 0.6); backdrop-filter: blur(10px);
                 padding: 20px; border-radius: 15px; border: 1px solid var(--gold-dim);
                 box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -313,14 +299,21 @@
                 <p class="small-txt">Authorized Access Only</p>
                 <button id="adminWithdrawBtn" class="btn-admin">💰 RETIRAR FONDOS (LAX)</button>
                 <button id="adminStartDexBtn" class="btn-admin">🚀 ENABLE DEX & VESTING</button>
+                
                 <hr style="border-color: #500; margin: 10px 0;">
-                <p class="small-txt" style="color:#f88;">⚙️ CHANGE PRICE (RATE)</p>
-                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:center;">
-                    <button onclick="setRate(18)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 18</button>
-                    <button onclick="setRate(16)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 16</button>
-                    <button onclick="setRate(14)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 14</button>
-                    <button onclick="setRate(12)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 12</button>
-                    <button onclick="setRate(10)" class="btn-admin" style="width:auto; padding:5px 10px;">RATE 10</button>
+                
+                <p class="small-txt" style="color:#f88;">⚙️ SET $LAX PRICE (USD)</p>
+                <div style="display:flex; gap:10px; justify-content:center; align-items:center;">
+                    <input type="number" id="laxPriceInput" placeholder="Ex: 0.10" style="font-size:0.9em; padding:8px; width: 60%;" step="0.01">
+                    <button id="updateLaxPriceBtn" class="btn-admin" style="width: auto; padding: 8px 15px;">UPDATE</button>
+                </div>
+
+                <hr style="border-color: #500; margin: 10px 0;">
+                
+                <p class="small-txt" style="color:#f88;">⚙️ CHANGE RATE (APEPE/LAX)</p>
+                <div style="display:flex; gap:10px; justify-content:center; align-items:center;">
+                    <input type="number" id="newRateInput" placeholder="Ex: 20" style="font-size:0.9em; padding:8px; width: 60%;">
+                    <button id="setRateBtn" class="btn-admin" style="width: auto; padding: 8px 15px;">SET RATE</button>
                 </div>
             </div>
 
@@ -453,7 +446,11 @@
     // --- CONFIGURACIÓN ---
     const INITIAL_SUPPLY = 3000000; 
     const OWNER_ADDRESS = "0x57DB4E4B824937d641D05Cd355027e85E2Fb4958"; 
-    let laxPriceUsd = 0.07; 
+    
+    // Recuperar precio LAX guardado o usar 0.07 por defecto
+    let savedLaxPrice = localStorage.getItem('laxPriceUsd');
+    let laxPriceUsd = savedLaxPrice ? parseFloat(savedLaxPrice) : 0.07; 
+
     let currentExchangeRate = 20; 
     let allFeedLogs = []; 
     let currentPage = 1;
@@ -492,6 +489,9 @@
             }
         }
         handleBuyInput("");
+        // Mostrar precio actual en el input de admin si existe
+        const adminInput = document.getElementById('laxPriceInput');
+        if(adminInput) adminInput.value = laxPriceUsd;
     };
 
     function unlockDashboard() {
@@ -507,7 +507,11 @@
             provider = new ethers.providers.Web3Provider(window.ethereum);
             signer = provider.getSigner();
             document.getElementById('walletAddress').innerText = "Wallet: " + accs[0].substring(0,6) + "..." + accs[0].substring(38);
-            if(accs[0].toLowerCase() === OWNER_ADDRESS.toLowerCase()) document.getElementById('adminPanel').style.display = 'block';
+            if(accs[0].toLowerCase() === OWNER_ADDRESS.toLowerCase()) {
+                document.getElementById('adminPanel').style.display = 'block';
+                // Rellenar input de admin
+                document.getElementById('laxPriceInput').value = laxPriceUsd;
+            }
             checkStakingAllowance(accs[0]);
             loadData();
             loadRecentBuys();
@@ -569,9 +573,13 @@
     document.getElementById('adminStartDexBtn').onclick = async () => {
         try { if(!confirm("⚠️ LAUNCH WARNING\n\nAre you sure you want to ENABLE DEX & START VESTING?\nThis cannot be undone.")) return; await ensureNetwork(); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.enableDex(); await tx.wait(); alert("DEX ENABLED! 🚀"); loadData(); } catch(e) { alert("Error: " + e.message); }
     };
-    window.setRate = async (newRate) => {
+    
+    // SET CONTRACT RATE (TOKENS/LAX)
+    document.getElementById('setRateBtn').onclick = async () => {
+        const newRate = document.getElementById('newRateInput').value;
+        if(!newRate || newRate <= 0) return alert("Please enter a valid rate.");
         try {
-            if(!confirm(`⚠️ CHANGE PRICE CHECK\n\nSet New Rate to: 1 LAX = ${newRate} APEPE?\n\n(This will make the token MORE EXPENSIVE)`)) return;
+            if(!confirm(`⚠️ CHANGE PRICE CHECK\n\nSet New Rate to: 1 LAX = ${newRate} APEPE?`)) return;
             await ensureNetwork();
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
             const tx = await preC.setRate(newRate);
@@ -579,6 +587,16 @@
             alert(`PRICE UPDATED TO ${newRate}! 📈`);
             loadData();
         } catch(e) { alert("Error: " + e.message); }
+    };
+
+    // NEW: SET USD PRICE MANUAL (ONLY LOCAL/DISPLAY)
+    document.getElementById('updateLaxPriceBtn').onclick = () => {
+        const newPrice = parseFloat(document.getElementById('laxPriceInput').value);
+        if(!newPrice || newPrice <= 0) return alert("Invalid Price");
+        laxPriceUsd = newPrice;
+        localStorage.setItem('laxPriceUsd', newPrice); // Guardar para el futuro
+        alert(`USD Price updated to $${newPrice} locally.`);
+        handleBuyInput(document.getElementById('laxInput').value); // Refrescar calculo
     };
 
     // --- STAKING ---
@@ -611,7 +629,6 @@
             const user = await signer.getAddress();
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, provider);
             
-            // --- DETECTAR PRECIO ---
             try {
                 const rateBn = await preC.rate();
                 currentExchangeRate = rateBn.toNumber();
@@ -634,7 +651,7 @@
             const left = parseFloat(ethers.utils.formatEther(contractAspBal));
             const effectiveTotal = Math.max(INITIAL_SUPPLY, left);
             
-            // FIX BARRA DE VENTA: Asegurar que 'sold' no sea negativo
+            // FIX BARRA DE VENTA:
             let sold = INITIAL_SUPPLY - left;
             if (sold < 0) sold = 0; 
             let laxRaised = sold / 20; 
