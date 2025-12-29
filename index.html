@@ -446,8 +446,18 @@
             }
         }
         handleBuyInput("");
-        // --- MATIZ PARA RECARGAS (F5) ---
+        
+        // --- LOGICA DE PERSISTENCIA (FIXED) ---
+        if (localStorage.getItem('pendingBuy')) {
+            document.getElementById('buy-section').classList.add('hidden');
+            document.getElementById('pre-loading').classList.remove('hidden');
+        }
         if (localStorage.getItem('pendingStkApprove')) showStep('stk', 'loading');
+        if (localStorage.getItem('pendingStake')) showStep('stk', 'loading'); // Usamos el mismo loading de staking
+        if (localStorage.getItem('pendingCompound')) {
+            document.getElementById('restake-ui').classList.add('hidden');
+            document.getElementById('restake-loading').classList.remove('hidden');
+        }
     };
 
     function unlockDashboard() {
@@ -507,19 +517,29 @@
     document.getElementById('buyBtn').onclick = async () => {
         const amt = document.getElementById('laxInput').value;
         const warnMsg = document.getElementById('buy-warning');
+        
+        // LOCK & SAVE STATE
+        localStorage.setItem('pendingBuy', 'true');
+        document.getElementById('buy-section').classList.add('hidden');
+        document.getElementById('pre-loading').classList.remove('hidden');
+
         if(warnMsg) warnMsg.style.display = 'block';
         try {
             await ensureNetwork();
             const wei = ethers.utils.parseUnits(amt.toString(), 18);
             const preC = new ethers.Contract(PRESALE_ADDR, ABI, signer);
             const tx = await preC.buyTokens({ value: wei, gasLimit: 200000 });
-            document.getElementById('buy-section').classList.add('hidden');
-            document.getElementById('pre-loading').classList.remove('hidden');
             await tx.wait();
+            
+            // UNLOCK STATE
+            localStorage.removeItem('pendingBuy');
             alert("SUCCESS! 🏺 $APEPE Purchased.");
             window.location.reload();
         } catch(e) { 
-            console.error(e); alert("Transaction failed."); 
+            console.error(e); 
+            // UNLOCK STATE ON ERROR
+            localStorage.removeItem('pendingBuy');
+            alert("Transaction failed."); 
             document.getElementById('pre-loading').classList.add('hidden'); 
             document.getElementById('buy-section').classList.remove('hidden'); 
             if(warnMsg) warnMsg.style.display = 'none';
@@ -613,11 +633,68 @@
         localStorage.setItem('pendingStkApprove', 'true');
         const warn = document.getElementById('warn-enable');
         if(warn) warn.style.display = 'block';
-        try { await ensureNetwork(); const aspC = new ethers.Contract(APEPE_ADDR, ABI, signer); const tx = await aspC.approve(STAKE_ADDR, ethers.constants.MaxUint256); showStep('stk', 'loading'); await tx.wait(); showStep('stk', 2); } catch(e) { showStep('stk', 1); } 
+        try { 
+            await ensureNetwork(); 
+            const aspC = new ethers.Contract(APEPE_ADDR, ABI, signer); 
+            const tx = await aspC.approve(STAKE_ADDR, ethers.constants.MaxUint256); 
+            showStep('stk', 'loading'); 
+            await tx.wait(); 
+            localStorage.removeItem('pendingStkApprove'); // Clean
+            showStep('stk', 2); 
+        } catch(e) { 
+            localStorage.removeItem('pendingStkApprove'); // Clean
+            showStep('stk', 1); 
+        } 
     };
-    document.getElementById('stakeBtn').onclick = async () => { const amt = document.getElementById('stakeInput').value; if (!amt || amt <= 0) return; try { await ensureNetwork(); const wei = ethers.utils.parseUnits(amt.toString(), 18); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.stake(wei, { gasLimit: 500000 }); showStep('stk', 'loading'); await tx.wait(); setTimeout(() => loadData(), 3000); alert("STAKING SUCCESSFUL! 🔒"); window.location.reload(); } catch(e) { alert("Staking failed."); showStep('stk', 2); } };
+    
+    document.getElementById('stakeBtn').onclick = async () => { 
+        const amt = document.getElementById('stakeInput').value; 
+        if (!amt || amt <= 0) return; 
+        
+        localStorage.setItem('pendingStake', 'true'); // SAVE
+        showStep('stk', 'loading'); 
+
+        try { 
+            await ensureNetwork(); 
+            const wei = ethers.utils.parseUnits(amt.toString(), 18); 
+            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); 
+            const tx = await stkC.stake(wei, { gasLimit: 500000 }); 
+            await tx.wait(); 
+            localStorage.removeItem('pendingStake'); // CLEAN
+            setTimeout(() => loadData(), 3000); 
+            alert("STAKING SUCCESSFUL! 🔒"); 
+            window.location.reload(); 
+        } catch(e) { 
+            localStorage.removeItem('pendingStake'); // CLEAN
+            alert("Staking failed."); 
+            showStep('stk', 2); 
+        } 
+    };
+    
     document.getElementById('unstakeBtn').onclick = async () => { try { await ensureNetwork(); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const user = await signer.getAddress(); const bal = await stkC.balanceOf(user); let warningMsg = "Withdraw your Principal?"; try { const isPenalty = await stkC.isPenaltyActive(); if(isPenalty) warningMsg = "⚠️ WARNING: You are withdrawing BEFORE vesting ends.\n\nYou will receive your PRINCIPAL, but ALL REWARDS will be FORFEITED (Lost).\n\nAre you sure?"; } catch(e) {} if(bal.eq(0)) { alert("No stake to withdraw."); return; } if(!confirm(warningMsg)) return; const tx = await stkC.withdraw(bal, { gasLimit: 500000 }); await tx.wait(); setTimeout(() => loadData(), 3000); alert("PRINCIPAL WITHDRAWN! 🔓"); window.location.reload(); } catch(e) { alert("Error: " + e.message); } };
-    document.getElementById('restakeBtn').onclick = async () => { try { await ensureNetwork(); document.getElementById('restake-ui').classList.add('hidden'); document.getElementById('restake-loading').classList.remove('hidden'); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.compound({ gasLimit: 500000 }); await tx.wait(); setTimeout(() => loadData(), 3000); alert("Compound Successful! ♻️"); window.location.reload(); } catch(e) { alert("Compound failed (Min 20 APEPE required)."); document.getElementById('restake-loading').classList.add('hidden'); document.getElementById('restake-ui').classList.remove('hidden'); } };
+    
+    document.getElementById('restakeBtn').onclick = async () => { 
+        localStorage.setItem('pendingCompound', 'true'); // SAVE
+        document.getElementById('restake-ui').classList.add('hidden'); 
+        document.getElementById('restake-loading').classList.remove('hidden'); 
+        
+        try { 
+            await ensureNetwork(); 
+            const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); 
+            const tx = await stkC.compound({ gasLimit: 500000 }); 
+            await tx.wait(); 
+            localStorage.removeItem('pendingCompound'); // CLEAN
+            setTimeout(() => loadData(), 3000); 
+            alert("Compound Successful! ♻️"); 
+            window.location.reload(); 
+        } catch(e) { 
+            localStorage.removeItem('pendingCompound'); // CLEAN
+            alert("Compound failed (Min 20 APEPE required)."); 
+            document.getElementById('restake-loading').classList.add('hidden'); 
+            document.getElementById('restake-ui').classList.remove('hidden'); 
+        } 
+    };
+    
     document.getElementById('claimBtn').onclick = async () => { try { await ensureNetwork(); document.getElementById('restake-ui').classList.add('hidden'); document.getElementById('restake-loading').classList.remove('hidden'); const stkC = new ethers.Contract(STAKE_ADDR, ABI, signer); const tx = await stkC.getReward({ gasLimit: 500000 }); await tx.wait(); setTimeout(() => loadData(), 3000); alert("Rewards Claimed! 💰"); window.location.reload(); } catch(e) { alert("Claim failed or Locked."); document.getElementById('restake-loading').classList.add('hidden'); document.getElementById('restake-ui').classList.remove('hidden'); } };
 
     async function loadData() {
